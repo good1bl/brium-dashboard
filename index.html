@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Brium • QuestSheet Active Aura HUD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Cinzel', 'serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            void: {
+              950: '#0b0e17',
+              900: '#131826',
+              850: '#181f32',
+              800: '#1f2840',
+              700: '#2e3a59',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0b0e17;
+      color: #f1f5f9;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: contain;
+    }
+
+    /* Matte Toned-Down Spell Slot Pips */
+    .slot-pip {
+      transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .slot-pip.available {
+      background: linear-gradient(145deg, #8b7ec8 0%, #6858a6 100%);
+      box-shadow: 0 1px 4px rgba(104, 88, 166, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.22);
+      border-color: #a89cd9;
+    }
+    .slot-pip.spent {
+      background: #101522;
+      border-color: #26304a;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+      opacity: 0.65;
+    }
+    .slot-pip:active {
+      transform: scale(0.9);
+    }
+
+    /* Matte Toned-Down Channel Divinity Orb Pips */
+    .cd-orb {
+      transition: all 0.18s ease;
+    }
+    .cd-orb.available {
+      background: linear-gradient(145deg, #d9a043 0%, #b07a24 100%);
+      box-shadow: 0 1px 5px rgba(176, 122, 36, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+      border-color: #e6be78;
+    }
+    .cd-orb.spent {
+      background: #101522;
+      border-color: #26304a;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+      opacity: 0.55;
+    }
+    .cd-orb:active {
+      transform: scale(0.9);
+    }
+
+    /* Micro Resource Pips (Adrenaline Rush & Steps of Night) */
+    .res-pip {
+      transition: all 0.15s ease;
+    }
+    .res-pip.available-emerald {
+      background-color: #3b9c76;
+      border-color: #6bc4a1;
+      box-shadow: 0 0 4px rgba(59, 156, 118, 0.25);
+    }
+    .res-pip.available-violet {
+      background-color: #7c6cb8;
+      border-color: #a699d6;
+      box-shadow: 0 0 4px rgba(124, 108, 184, 0.25);
+    }
+    .res-pip.spent {
+      background-color: #0e1320;
+      border-color: #26304a;
+      opacity: 0.6;
+    }
+
+    /* Glowing Active Twilight Sanctuary Aura Card */
+    @keyframes sanctuary-aura-glow {
+      0%, 100% {
+        border-color: rgba(245, 158, 11, 0.75);
+        box-shadow: 0 0 22px rgba(139, 92, 246, 0.25), 0 0 12px rgba(245, 158, 11, 0.2);
+      }
+      50% {
+        border-color: rgba(167, 139, 250, 0.95);
+        box-shadow: 0 0 28px rgba(139, 92, 246, 0.4), 0 0 18px rgba(245, 158, 11, 0.35);
+      }
+    }
+    .active-sanctuary-card {
+      background: linear-gradient(145deg, rgba(30, 22, 54, 0.96) 0%, rgba(19, 24, 38, 0.98) 60%, rgba(45, 29, 14, 0.92) 100%);
+      animation: sanctuary-aura-glow 3.5s infinite ease-in-out;
+    }
+
+    /* Steps of Night Dim-Light Synergy Glow */
+    .steps-synergy-glow {
+      border-color: rgba(245, 158, 11, 0.8) !important;
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.22);
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.12) 0%, rgba(19, 24, 38, 0.95) 100%);
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="min-h-screen pb-20 antialiased selection:bg-violet-500/30 selection:text-violet-200">
+
+  <!-- Non-Blocking Toast Banner -->
+  <div id="toast-container" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md pointer-events-none flex flex-col gap-2"></div>
+
+  <!-- ======================================================================= -->
+  <!-- 1. STICKY SPELLCASTING HEADER                                           -->
+  <!-- ======================================================================= -->
+  <header class="sticky top-0 z-30 bg-void-950/95 backdrop-blur-md border-b border-violet-500/25 shadow-xl shadow-black/70">
+    <div class="max-w-xl mx-auto px-3.5 pt-3 pb-2.5">
+      <!-- Top Row: Identity Badge + Rest Controls -->
+      <div class="flex items-center justify-between gap-2 mb-2.5">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/30 via-indigo-500/20 to-amber-500/20 border border-violet-400/40 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-amber-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.5 3.5v3M16 5h3" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h1 class="font-display font-bold text-sm sm:text-base tracking-wide text-slate-100 truncate">
+              BRIUM <span class="text-violet-400">•</span> <span class="font-sans font-semibold text-xs text-violet-300">Lv. 5 Orc Twilight Cleric</span>
+            </h1>
+            <p class="text-[11px] text-slate-400 truncate">QuestSheet Tactical Spell & Aura HUD</p>
+          </div>
+        </div>
+
+        <!-- Short Rest & Long Rest Buttons -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button onclick="performShortRest()" class="min-h-[44px] px-2.5 rounded-xl bg-void-900 hover:bg-void-800 border border-amber-500/40 text-amber-300 text-xs font-semibold transition active:scale-95">
+            Short Rest
+          </button>
+          <button onclick="openLongRestConfirm()" class="min-h-[44px] px-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 border border-violet-400/50 text-white text-xs font-semibold shadow-md shadow-violet-950/60 transition active:scale-95">
+            Long Rest
+          </button>
+        </div>
+      </div>
+
+      <!-- Inline 2-Step Long Rest Confirmation Drawer -->
+      <div id="long-rest-banner" class="hidden mb-2.5 p-2.5 rounded-xl bg-violet-950/95 border border-violet-400/50 flex items-center justify-between gap-2">
+        <span class="text-xs text-violet-100 font-medium leading-tight">Reset all spell slots, Channel Divinity, Steps of Night, Adrenaline Rush & clear Temp HP/Conc?</span>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button onclick="closeLongRestConfirm()" class="min-h-[38px] px-2.5 rounded-lg bg-void-900 text-slate-300 text-xs font-medium border border-slate-700">Cancel</button>
+          <button onclick="confirmLongRest()" class="min-h-[38px] px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow">Confirm</button>
+        </div>
+      </div>
+
+      <!-- Dynamic WIS Mod Toggle + Derived Spell Attack & Save DC -->
+      <div class="grid grid-cols-3 gap-2 mb-2.5">
+        <button onclick="toggleWisMod()" class="min-h-[44px] rounded-xl bg-void-900 hover:bg-void-800 border border-violet-400/40 px-2.5 py-1 flex items-center justify-between active:scale-95 transition" title="Tap to toggle WIS +3 / +4">
+          <div class="text-left">
+            <span class="text-[10px] font-bold text-violet-300 uppercase block leading-none">WIS Mod</span>
+            <span class="text-[9px] text-slate-400">Tap to switch</span>
+          </div>
+          <span id="hdr-wis-mod" class="font-mono font-bold text-base text-violet-300">+3</span>
+        </button>
+
+        <div class="min-h-[44px] rounded-xl bg-void-900 border border-slate-800 px-2.5 py-1 flex items-center justify-between">
+          <span class="text-[11px] font-medium text-slate-400 uppercase">Spell Atk</span>
+          <span id="hdr-spell-atk" class="font-mono font-bold text-base text-sky-400">+6</span>
+        </div>
+
+        <div class="min-h-[44px] rounded-xl bg-void-900 border border-slate-800 px-2.5 py-1 flex items-center justify-between">
+          <span class="text-[11px] font-medium text-slate-400 uppercase">Save DC</span>
+          <span id="hdr-save-dc" class="font-mono font-bold text-base text-amber-300">14</span>
+        </div>
+      </div>
+
+      <!-- Interactive Spell Slot Crystal Pips -->
+      <div class="bg-void-900/90 border border-slate-800/90 rounded-xl p-2">
+        <div class="grid grid-cols-3 gap-2 divide-x divide-slate-800">
+          <!-- 1st Level (4) -->
+          <div class="flex flex-col items-center">
+            <div class="flex items-center justify-between w-full px-1 mb-0.5">
+              <span class="text-[11px] font-semibold text-slate-300">1st Lvl</span>
+              <span id="hdr-slot-count-1" class="font-mono text-[11px] text-violet-300 font-bold">4/4</span>
+            </div>
+            <div id="hdr-pips-1" class="flex items-center justify-center gap-0.5"></div>
+          </div>
+
+          <!-- 2nd Level (3) -->
+          <div class="flex flex-col items-center pl-2">
+            <div class="flex items-center justify-between w-full px-1 mb-0.5">
+              <span class="text-[11px] font-semibold text-slate-300">2nd Lvl</span>
+              <span id="hdr-slot-count-2" class="font-mono text-[11px] text-violet-300 font-bold">3/3</span>
+            </div>
+            <div id="hdr-pips-2" class="flex items-center justify-center gap-0.5"></div>
+          </div>
+
+          <!-- 3rd Level (2) -->
+          <div class="flex flex-col items-center pl-2">
+            <div class="flex items-center justify-between w-full px-1 mb-0.5">
+              <span class="text-[11px] font-semibold text-slate-300">3rd Lvl</span>
+              <span id="hdr-slot-count-3" class="font-mono text-[11px] text-violet-300 font-bold">2/2</span>
+            </div>
+            <div id="hdr-pips-3" class="flex items-center justify-center gap-0.5"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================================================================= -->
+  <!-- MAIN DASHBOARD BODY                                                     -->
+  <!-- ======================================================================= -->
+  <main class="max-w-xl mx-auto px-3.5 pt-3.5 space-y-4">
+
+    <!-- ===================================================================== -->
+    <!-- 2. ACTIVE AURA HUD (CHANNEL DIVINITY STATE MACHINE - CENTERPIECE)     -->
+    <!-- ===================================================================== -->
+    <section id="cd-hud-card" class="rounded-2xl bg-void-900 border border-violet-500/35 p-3.5 shadow-lg transition-all">
+      
+      <!-- Top Bar: Channel Divinity Charges + Lv. 6 Mode Toggle -->
+      <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800/80">
+        <div class="flex items-center gap-2">
+          <div id="cd-orbs-container" class="flex items-center gap-0.5"></div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-100">Channel Divinity</span>
+              <span id="cd-charge-label" class="font-mono text-xs font-bold text-amber-400">1 / 1</span>
+            </div>
+            <span class="text-[10px] text-slate-400 block">Recharges on Short or Long Rest</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <!-- Lv. 6 Mode Toggle (1 vs 2 Charges) -->
+          <button onclick="toggleLv6Mode()" id="btn-lv6-toggle" class="min-h-[36px] px-2 rounded-lg bg-void-950 border border-slate-700 text-[10px] font-semibold text-slate-400 active:scale-95 transition">
+            Lv.5 (1 CD)
+          </button>
+          <button onclick="performShortRest()" class="min-h-[36px] px-2.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 text-[11px] font-semibold active:scale-95 transition">
+            Recharge
+          </button>
+        </div>
+      </div>
+
+      <!-- STATE A: IDLE CHANNEL DIVINITY ACTION LAUNCHER -->
+      <div id="cd-state-idle" class="pt-3 space-y-2.5">
+        <!-- Primary Action: Activate Twilight Sanctuary -->
+        <button onclick="activateTwilightSanctuary()" class="w-full min-h-[54px] p-3 rounded-xl bg-gradient-to-r from-violet-600/90 via-indigo-600/90 to-amber-600/80 hover:from-violet-500 hover:to-amber-500 border border-amber-300/50 text-left flex items-center justify-between shadow-lg shadow-violet-950/60 active:scale-[0.99] transition">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-sm font-bold text-white">Activate Twilight Sanctuary</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/30 text-amber-200 border border-amber-300/30">1 Action</span>
+            </div>
+            <p class="text-[11px] text-violet-100/90 mt-0.5">30-ft dim light sphere • 1 min (No Conc) • 1d6+5 THP or end Charm/Fear</p>
+          </div>
+          <svg class="w-5 h-5 text-amber-200 shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </button>
+
+        <!-- Secondary Actions Grid: Turn/Destroy Undead & Harness Divine Power -->
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Turn / Destroy Undead -->
+          <button onclick="useTurnUndead()" class="min-h-[58px] p-2.5 rounded-xl bg-void-950 hover:bg-void-850 border border-slate-700/90 text-left flex flex-col justify-between active:scale-95 transition">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs font-bold text-slate-100">Turn Undead</span>
+              <span class="text-[10px] font-mono text-amber-300 font-bold">DC <span id="cd-turn-dc">14</span></span>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight mt-1">1A • 30 ft WIS save. Auto-destroys <strong class="text-rose-300">CR ≤ 1/2</strong>.</p>
+          </button>
+
+          <!-- Harness Divine Power (1/Long Rest) -->
+          <button onclick="openHarnessModal()" id="btn-harness-power" class="min-h-[58px] p-2.5 rounded-xl bg-void-950 hover:bg-void-850 border border-violet-500/35 text-left flex flex-col justify-between active:scale-95 transition">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs font-bold text-violet-200">Harness Power</span>
+              <span id="harness-badge" class="text-[10px] font-mono px-1 rounded bg-violet-500/20 text-violet-300">1/1 LR</span>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight mt-1">1BA • Spend CD to recover 1 spent slot (1st–3rd).</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- STATE B: ACTIVE TWILIGHT SANCTUARY HUD -->
+      <div id="cd-state-active" class="hidden pt-3 space-y-3">
+        <!-- Active Header & Round Stepper -->
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-amber-300">Active Twilight Sanctuary</h2>
+            </div>
+            <p class="text-[11px] text-violet-200 mt-0.5">30-ft Dim Light Sphere • Ends at end of turn inside</p>
+          </div>
+          <button onclick="dismissTwilightSanctuary()" class="min-h-[40px] px-3 rounded-xl bg-rose-950/90 hover:bg-rose-900 border border-rose-500/50 text-rose-200 text-xs font-semibold shrink-0 active:scale-95">
+            Dismiss Aura
+          </button>
+        </div>
+
+        <!-- Round 1/10 & Seconds Remaining Stepper Bar -->
+        <div class="p-2.5 rounded-xl bg-void-950/85 border border-amber-400/35 flex items-center justify-between gap-2">
+          <div>
+            <div class="flex items-baseline gap-2">
+              <span class="font-mono font-bold text-base text-amber-300">ROUND <span id="aura-round-num">1</span> / 10</span>
+              <span class="font-mono text-xs text-slate-400">(<span id="aura-seconds-left">60</span>s left)</span>
+            </div>
+            <div class="w-36 sm:w-44 h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1.5">
+              <div id="aura-progress-bar" class="h-full bg-gradient-to-r from-violet-500 to-amber-400 transition-all duration-300" style="width: 100%"></div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="stepAuraRound(-1)" class="min-h-[44px] min-w-[44px] rounded-xl bg-void-900 hover:bg-void-800 border border-slate-700 font-mono font-bold text-sm text-slate-300 active:scale-95">-1</button>
+            <button onclick="stepAuraRound(1)" class="min-h-[44px] px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-void-950 font-bold text-xs shadow active:scale-95">+1 Round</button>
+          </div>
+        </div>
+
+        <!-- End-of-Turn THP Generator: Roll 1d6+5 OR Quick-Tap 6-11 -->
+        <div class="p-3 rounded-xl bg-void-950/90 border border-violet-400/30 space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <span class="text-xs font-bold text-slate-100 block">End-of-Turn Temporary HP</span>
+              <span id="sanctuary-last-roll" class="text-[11px] font-mono text-amber-300">Tap to roll 1d6 + 5 (or pick die result)</span>
+            </div>
+            <button onclick="rollSanctuaryTHP()" class="min-h-[46px] px-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-void-950 font-bold text-xs shadow-md shadow-amber-950/50 shrink-0 active:scale-95 transition">
+              🎲 Roll 1d6 + 5
+            </button>
+          </div>
+
+          <!-- Quick-Tap Number Pills (6 through 11) -->
+          <div class="grid grid-cols-6 gap-1.5">
+            <button onclick="evaluateSanctuaryTHP(6, 1)" class="min-h-[42px] rounded-lg bg-void-900 hover:bg-violet-900/50 border border-slate-700 hover:border-amber-400/50 font-mono font-bold text-sm text-amber-200 active:scale-95">6</button>
+            <button onclick="evaluateSanctuaryTHP(7, 2)" class="min-h-[42px] rounded-lg bg-void-900 hover:bg-violet-900/50 border border-slate-700 hover:border-amber-400/50 font-mono font-bold text-sm text-amber-200 active:scale-95">7</button>
+            <button onclick="evaluateSanctuaryTHP(8, 3)" class="min-h-[42px] rounded-lg bg-void-900 hover:bg-violet-900/50 border border-slate-700 hover:border-amber-400/50 font-mono font-bold text-sm text-amber-200 active:scale-95">8</button>
+            <button onclick="evaluateSanctuaryTHP(9, 4)" class="min-h-[42px] rounded-lg bg-void-900 hover:bg-violet-900/50 border border-slate-700 hover:border-amber-400/50 font-mono font-bold text-sm text-amber-200 active:scale-95">9</button>
+            <button onclick="evaluateSanctuaryTHP(10, 5)" class="min-h-[42px] rounded-lg bg-void-900 hover:bg-violet-900/50 border border-slate-700 hover:border-amber-400/50 font-mono font-bold text-sm text-amber-200 active:scale-95">10</button>
+            <button onclick="evaluateSanctuaryTHP(11, 6)" class="min-h-[42px] rounded-lg bg-void-900 hover:bg-violet-900/50 border border-slate-700 hover:border-amber-400/50 font-mono font-bold text-sm text-amber-200 active:scale-95">11</button>
+          </div>
+
+          <!-- Smart Non-Stacking Comparison Banner (Appears when new THP <= current THP) -->
+          <div id="thp-conflict-banner" class="hidden p-2.5 rounded-xl bg-amber-950/90 border border-amber-400/60 space-y-2">
+            <p id="thp-conflict-text" class="text-xs text-amber-100 font-medium leading-snug">
+              Non-Stacking Rule: Your current 8 THP (Fiendish Vigor) is higher than or equal to 7 THP.
+            </p>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="resolveThpConflict(false)" id="btn-keep-thp" class="min-h-[40px] px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
+                Keep Current (8 THP)
+              </button>
+              <button onclick="resolveThpConflict(true)" id="btn-replace-thp" class="min-h-[40px] px-2.5 rounded-lg bg-void-900 hover:bg-void-800 border border-amber-400/40 text-amber-200 text-xs font-semibold">
+                Replace with 7 THP
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Condition Clear Reminder Badge -->
+        <button onclick="toggleConditionReminder()" id="btn-condition-reminder" class="w-full min-h-[44px] px-3 py-2 rounded-xl bg-violet-950/70 border border-violet-400/35 flex items-center justify-between text-left active:scale-[0.99] transition">
+          <div class="flex items-center gap-2">
+            <span id="cond-check-icon" class="w-5 h-5 rounded-md border border-violet-400/60 flex items-center justify-center text-xs text-amber-300">✦</span>
+            <span class="text-xs font-semibold text-violet-100">Alt Benefit: End Charmed or Frightened</span>
+          </div>
+          <span id="cond-status-pill" class="text-[10px] font-mono px-2 py-0.5 rounded bg-violet-500/20 text-violet-200">Reminder Active</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 3. TACTICAL STATUS BANNER (CONCENTRATION & TEMP HP POOL)              -->
+    <!-- ===================================================================== -->
+    <section class="grid grid-cols-1 gap-3">
+      
+      <!-- Active Concentration Tracker -->
+      <div id="conc-card" class="rounded-2xl bg-void-900 border border-slate-800 p-3.5 transition-all">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2">
+            <span id="conc-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-violet-300">Concentration</h2>
+          </div>
+
+          <!-- CON Save Check Helper + War Caster Toggle -->
+          <div class="flex items-center gap-1.5">
+            <button onclick="toggleWarCaster()" id="btn-warcaster" class="min-h-[34px] px-2 rounded-lg bg-void-950 border border-slate-700 text-[10px] font-semibold text-slate-400 active:scale-95">
+              War Caster: Off
+            </button>
+            <button onclick="rollConSaveCheck()" class="min-h-[34px] px-2.5 rounded-lg bg-violet-500/20 hover:bg-violet-500/30 border border-violet-400/40 text-violet-200 text-[11px] font-semibold active:scale-95">
+              CON Check (+4)
+            </button>
+          </div>
+        </div>
+
+        <div id="conc-empty" class="flex items-center justify-between py-0.5">
+          <span class="text-xs text-slate-400 italic">No active concentration spell</span>
+          <span class="text-[10px] text-slate-500">Twilight Sanctuary is Non-Conc</span>
+        </div>
+
+        <div id="conc-active" class="hidden flex items-center justify-between gap-2 pt-0.5">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span id="conc-name" class="font-bold text-sm text-amber-200 truncate">Spirit Guardians</span>
+              <span id="conc-lvl-badge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30">3rd</span>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-xs text-slate-300">Round: <strong id="conc-round" class="font-mono text-amber-300">1</strong></span>
+              <button onclick="stepConcRound()" class="min-h-[34px] px-2.5 rounded-lg bg-void-950 hover:bg-void-800 border border-slate-700 text-xs font-semibold text-slate-200 active:scale-95">+1 Turn</button>
+            </div>
+          </div>
+          <button onclick="dropConcentration()" class="min-h-[44px] px-3 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 text-xs font-semibold shrink-0 active:scale-95">
+            Drop (C)
+          </button>
+        </div>
+      </div>
+
+      <!-- Temp HP Pool & Damage Intake Card -->
+      <div class="rounded-2xl bg-void-900 border border-amber-500/30 p-3.5">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400">Temporary HP Pool</h2>
+              <span class="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-400/30">Non-Stacking</span>
+            </div>
+            <p id="thp-source-label" class="text-[11px] text-slate-400 mt-0.5">Source: None active</p>
+          </div>
+          <div class="px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-400/45 text-right">
+            <span id="thp-value" class="font-mono font-bold text-2xl text-amber-300 leading-none">0</span>
+            <span class="text-[9px] uppercase text-amber-200/80 block font-bold tracking-wider">Temp HP</span>
+          </div>
+        </div>
+
+        <!-- Quick Presets: Fiendish Vigor (+8) & Orc Adrenaline Rush (+3, 3/3 PB) -->
+        <div class="grid grid-cols-2 gap-2 mb-2.5">
+          <button onclick="applyPresetTHP(8, 'Fiendish Vigor (False Life)')" class="min-h-[48px] px-3 py-2 rounded-xl bg-void-950 hover:bg-void-850 border border-violet-400/35 flex items-center justify-between active:scale-95 transition">
+            <div class="text-left">
+              <span class="text-xs font-bold text-violet-200 block">Fiendish Vigor</span>
+              <span class="text-[10px] text-slate-400">At-will invocation</span>
+            </div>
+            <span class="font-mono font-bold text-sm text-amber-300">+8</span>
+          </button>
+
+          <button onclick="useAdrenalineRush()" id="btn-adrenaline" class="min-h-[48px] px-3 py-2 rounded-xl bg-void-950 hover:bg-void-850 border border-emerald-500/30 flex items-center justify-between active:scale-95 transition">
+            <div class="text-left">
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-bold text-emerald-300/90">Adrenaline Rush</span>
+                <span id="adrenaline-pips" class="inline-flex items-center gap-1" title="3/3 uses"></span>
+              </div>
+              <span class="text-[10px] text-slate-400">Orc BA Dash + PB (<span id="adrenaline-count" class="font-mono">3/3</span>)</span>
+            </div>
+            <span class="font-mono font-bold text-sm text-amber-300">+3</span>
+          </button>
+        </div>
+
+        <!-- Take Damage Stepper (Deducts from Temp HP first before overflow) -->
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-800/80">
+          <input type="number" id="dmg-input" inputmode="numeric" placeholder="Damage taken..." class="flex-1 min-h-[44px] px-3 rounded-xl bg-void-950 border border-slate-700 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-rose-400" />
+          <button onclick="takeDamage()" class="min-h-[44px] px-4 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold shrink-0 active:scale-95 transition">
+            Take Damage
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 4. TWILIGHT DOMAIN & PREPARED SPELLBOOK                               -->
+    <!-- ===================================================================== -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-100">Spellbook & Domain</h2>
+          <p class="text-[11px] text-slate-400">6 Domain Pinned + <span id="prep-summary-text" class="text-violet-300 font-semibold">8/8</span> Prepared</p>
+        </div>
+        <button onclick="togglePrepDrawer()" class="min-h-[44px] px-3 rounded-xl bg-void-900 hover:bg-void-800 border border-violet-400/40 text-violet-200 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition">
+          <span>Manage Prepared (<span id="prep-btn-count">8/8</span>)</span>
+        </button>
+      </div>
+
+      <!-- Collapsible Manage Prepared Spells Drawer -->
+      <div id="prep-drawer" class="hidden rounded-2xl bg-void-900 border border-violet-400/50 p-3.5 shadow-2xl space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-violet-300">Daily Cleric Preparations</h3>
+            <p class="text-[11px] text-slate-400">Limit: Level 5 + WIS Mod = <strong id="prep-limit-val" class="text-slate-100">8</strong> spells (Domain spells free)</p>
+          </div>
+          <button onclick="togglePrepDrawer()" class="min-h-[38px] px-3 rounded-lg bg-void-800 text-slate-200 text-xs font-semibold">Done</button>
+        </div>
+
+        <div id="prep-list-container" class="max-h-60 overflow-y-auto space-y-1.5 pr-1"></div>
+
+        <!-- Add Custom Spell Form -->
+        <div class="pt-2.5 border-t border-slate-800 space-y-2">
+          <span class="text-[11px] font-bold text-slate-300 block">Add Custom Spell</span>
+          <div class="grid grid-cols-12 gap-1.5">
+            <input type="text" id="new-spell-name" placeholder="Spell name" class="col-span-5 min-h-[42px] px-2.5 rounded-xl bg-void-950 border border-slate-700 text-xs text-slate-100" />
+            <select id="new-spell-level" class="col-span-3 min-h-[42px] px-1.5 rounded-xl bg-void-950 border border-slate-700 text-xs text-slate-100">
+              <option value="0">Cantrip</option>
+              <option value="1" selected>1st Lvl</option>
+              <option value="2">2nd Lvl</option>
+              <option value="3">3rd Lvl</option>
+            </select>
+            <select id="new-spell-time" class="col-span-2 min-h-[42px] px-1 rounded-xl bg-void-950 border border-slate-700 text-xs text-slate-100">
+              <option value="1A">1A</option>
+              <option value="1BA">1BA</option>
+              <option value="1R">1R</option>
+              <option value="1m">1m</option>
+            </select>
+            <button onclick="addCustomSpell()" class="col-span-2 min-h-[42px] rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold">+</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="text" id="new-spell-summary" placeholder="Short mechanical effect..." class="flex-1 min-h-[40px] px-2.5 rounded-xl bg-void-950 border border-slate-700 text-xs text-slate-100" />
+            <label class="flex items-center gap-1.5 text-xs text-amber-300 shrink-0 px-1">
+              <input type="checkbox" id="new-spell-conc" class="rounded bg-void-950 border-slate-600 text-amber-500" />
+              <span>(C)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter Pills -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+        <button onclick="setFilter('ALL')" data-filter="ALL" class="spell-filter-btn min-h-[40px] px-3 rounded-xl text-xs font-bold bg-violet-500 text-void-950 shrink-0">All Active</button>
+        <button onclick="setFilter('DOMAIN')" data-filter="DOMAIN" class="spell-filter-btn min-h-[40px] px-3 rounded-xl text-xs font-semibold bg-void-900 text-amber-300 border border-slate-800 shrink-0">★ Domain</button>
+        <button onclick="setFilter('0')" data-filter="0" class="spell-filter-btn min-h-[40px] px-3 rounded-xl text-xs font-semibold bg-void-900 text-slate-300 border border-slate-800 shrink-0">Cantrips</button>
+        <button onclick="setFilter('1')" data-filter="1" class="spell-filter-btn min-h-[40px] px-3 rounded-xl text-xs font-semibold bg-void-900 text-slate-300 border border-slate-800 shrink-0">1st</button>
+        <button onclick="setFilter('2')" data-filter="2" class="spell-filter-btn min-h-[40px] px-3 rounded-xl text-xs font-semibold bg-void-900 text-slate-300 border border-slate-800 shrink-0">2nd</button>
+        <button onclick="setFilter('3')" data-filter="3" class="spell-filter-btn min-h-[40px] px-3 rounded-xl text-xs font-semibold bg-void-900 text-slate-300 border border-slate-800 shrink-0">3rd</button>
+        <button onclick="setFilter('BA')" data-filter="BA" class="spell-filter-btn min-h-[40px] px-3 rounded-xl text-xs font-semibold bg-void-900 text-emerald-300 border border-slate-800 shrink-0">Bonus Action</button>
+      </div>
+
+      <!-- Active Spells List -->
+      <div id="spells-container" class="space-y-4"></div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 5. TWILIGHT FEATURES & QUESTSHEET SYNC FOOTER                         -->
+    <!-- ===================================================================== -->
+    <section class="rounded-2xl bg-void-900 border border-slate-800 p-3.5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-violet-300">Twilight Class Features</h2>
+        <span id="dim-light-badge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/40">
+          ✦ Dim Light Active (Flight Ready!)
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <!-- Eyes of Night -->
+        <div class="p-3 rounded-xl bg-void-950 border border-slate-800 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-sky-300">Eyes of Night</span>
+              <span class="font-mono text-[10px] text-slate-400">300 ft</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1 leading-snug">Share 300-ft darkvision with up to <strong id="eyes-allies-count" class="text-slate-100">3</strong> allies (1A, 1 hr).</p>
+          </div>
+          <button onclick="toggleEyesOfNight()" id="btn-eyes-night" class="mt-2.5 min-h-[40px] w-full rounded-xl bg-sky-500/15 border border-sky-400/35 text-sky-300 text-xs font-semibold active:scale-95 transition">
+            Free Share: 1/1
+          </button>
+        </div>
+
+        <!-- Steps of Night (Highlights in gold when Twilight Sanctuary is active!) -->
+        <div id="steps-night-card" class="p-3 rounded-xl bg-void-950 border border-slate-800 flex flex-col justify-between transition-all">
+          <div>
+            <div class="flex items-center justify-between gap-1">
+              <span class="text-xs font-bold text-violet-300">Steps of Night</span>
+              <div class="flex items-center gap-1.5">
+                <span id="steps-night-pips" class="inline-flex items-center gap-1"></span>
+                <span id="steps-night-count" class="font-mono text-[11px] font-semibold text-slate-400">3/3</span>
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1 leading-snug">1BA in dim light/darkness: gain fly speed = walk speed (1 min).</p>
+          </div>
+          <button onclick="useStepsOfNight()" id="btn-steps-night" class="mt-2.5 min-h-[40px] w-full rounded-xl bg-violet-600/20 hover:bg-violet-600/30 border border-violet-400/35 text-violet-200 text-xs font-semibold active:scale-95 transition">
+            Fly (1BA)
+          </button>
+        </div>
+      </div>
+
+      <!-- Export / Import JSON Sync Button -->
+      <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+        <span class="text-[11px] text-slate-500">Auto-saved locally on device</span>
+        <button onclick="openJsonModal()" class="min-h-[42px] px-3.5 rounded-xl bg-void-950 hover:bg-void-800 border border-slate-700 text-xs font-semibold text-violet-300 flex items-center gap-1.5 active:scale-95 transition">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+          <span>Export / Import JSON</span>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 1: HARNESS DIVINE POWER (RECOVER 1 EXPENDED SLOT)                 -->
+  <!-- ======================================================================= -->
+  <div id="harness-modal" class="fixed inset-0 z-40 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
+    <div class="w-full max-w-md rounded-2xl bg-void-900 border border-violet-400/50 p-4 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-violet-300">Bonus Action • 1 / Long Rest</span>
+          <h3 class="text-base font-bold text-slate-100">Harness Divine Power</h3>
+        </div>
+        <button onclick="closeHarnessModal()" class="min-h-[40px] min-w-[40px] rounded-xl bg-void-950 text-slate-400 flex items-center justify-center">✕</button>
+      </div>
+      <p class="text-xs text-slate-300">Expend 1 Channel Divinity charge to recover one expended spell slot (up to 3rd level):</p>
+      <div id="harness-slot-choices" class="grid grid-cols-3 gap-2"></div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 2: CAST & UPCAST SPELL MODAL                                      -->
+  <!-- ======================================================================= -->
+  <div id="cast-modal" class="fixed inset-0 z-40 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
+    <div class="w-full max-w-md rounded-2xl bg-void-900 border border-violet-400/50 p-4 shadow-2xl space-y-3.5">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <span id="cast-modal-subtitle" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-400/30">1st-Level</span>
+          <h3 id="cast-modal-name" class="text-lg font-bold text-slate-100 mt-1">Bless</h3>
+          <p id="cast-modal-meta" class="text-xs text-slate-400">1A • 30 ft • Conc, 1 min</p>
+        </div>
+        <button onclick="closeCastModal()" class="min-h-[40px] min-w-[40px] rounded-xl bg-void-950 text-slate-400 flex items-center justify-center">✕</button>
+      </div>
+
+      <p id="cast-modal-summary" class="text-xs text-slate-200 leading-relaxed bg-void-950 p-3 rounded-xl border border-slate-800"></p>
+
+      <div id="cast-conc-alert" class="hidden p-2.5 rounded-xl bg-amber-950/80 border border-amber-500/50 text-xs text-amber-200">
+        ⚠️ Concentrating on <strong id="cast-conc-existing"></strong>. Casting this will replace it!
+      </div>
+
+      <div class="space-y-2">
+        <span class="text-xs font-semibold text-slate-300 block">Choose Spell Slot Level:</span>
+        <div id="cast-slot-grid" class="grid grid-cols-3 gap-2"></div>
+      </div>
+
+      <div id="cast-ritual-box" class="hidden">
+        <button onclick="executeCast(0, true)" class="w-full min-h-[44px] rounded-xl bg-void-950 hover:bg-void-800 border border-sky-400/40 text-sky-300 text-xs font-semibold">
+          Cast as Ritual (+10 mins, 0 Slots)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 3: QUESTSHEET JSON EXPORT / IMPORT SYNC                           -->
+  <!-- ======================================================================= -->
+  <div id="json-modal" class="fixed inset-0 z-40 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-3.5">
+    <div class="w-full max-w-md rounded-2xl bg-void-900 border border-slate-700 p-4 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-violet-300">QuestSheet JSON Sync</h3>
+        <button onclick="closeJsonModal()" class="min-h-[40px] min-w-[40px] rounded-xl bg-void-950 text-slate-400 flex items-center justify-center">✕</button>
+      </div>
+      <p class="text-xs text-slate-400">Copy this JSON to sync Brium's live spell slots, aura state, and Temp HP across devices, or paste a snapshot to restore.</p>
+      <textarea id="json-box" rows="6" class="w-full p-2.5 rounded-xl bg-void-950 border border-slate-800 font-mono text-[11px] text-amber-300 focus:outline-none focus:border-violet-400"></textarea>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="copyJson()" class="min-h-[44px] rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold">Copy JSON</button>
+        <button onclick="importJson()" class="min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">Import JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. BRIUM'S SPELLBOOK & DEFAULT STATE
+    // =========================================================================
+    const INITIAL_SPELLS = [
+      // Cantrips
+      { id: 'guidance', name: 'Guidance', level: 0, time: '1A', range: 'Touch', duration: 'Conc, 1m', conc: true, ritual: false, domain: false, prepared: true, summary: 'Touch 1 willing creature; add +1d4 to one ability check before spell ends.' },
+      { id: 'sacred-flame', name: 'Sacred Flame', level: 0, time: '1A', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'DEX save or 2d8 radiant damage; target gains no benefit from cover.' },
+      { id: 'toll-the-dead', name: 'Toll the Dead', level: 0, time: '1A', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'WIS save or 2d8 necrotic damage (2d12 if target is missing any HP).' },
+      { id: 'thaumaturgy', name: 'Thaumaturgy', level: 0, time: '1A', range: '30 ft', duration: '1 min', conc: false, ritual: false, domain: false, prepared: true, summary: 'Create minor divine sign: booming voice, harmless tremors, flicker flames.' },
+
+      // Twilight Domain Always-Prepared Spells (6 Pinned)
+      { id: 'faerie-fire', name: 'Faerie Fire', level: 1, time: '1A', range: '60 ft', duration: 'Conc, 1m', conc: true, ritual: false, domain: true, prepared: true, summary: '20-ft cube DEX save; outlines targets in dim light, granting attack advantage & negating invisibility.' },
+      { id: 'sleep', name: 'Sleep', level: 1, time: '1A', range: '90 ft', duration: '1 min', conc: false, ritual: false, domain: true, prepared: true, summary: 'Roll 5d8 (+2d8/slot lvl) HP of creatures put unconscious in 20-ft radius, lowest HP first.' },
+      { id: 'moonbeam', name: 'Moonbeam', level: 2, time: '1A', range: '120 ft', duration: 'Conc, 1m', conc: true, ritual: false, domain: true, prepared: true, summary: '5-ft radius beam; 2d10 (+1d10/lvl) radiant on entry/turn start (CON half). Shapechangers disadv.' },
+      { id: 'see-invisibility', name: 'See Invisibility', level: 2, time: '1A', range: 'Self', duration: '1 hour', conc: false, ritual: false, domain: true, prepared: true, summary: 'See invisible creatures/objects as if visible, and see into the Ethereal Plane.' },
+      { id: 'aura-of-vitality', name: 'Aura of Vitality', level: 3, time: '1A', range: 'Self (30 ft)', duration: 'Conc, 1m', conc: true, ritual: false, domain: true, prepared: true, summary: 'Use Bonus Action each turn to heal 1 creature within 30 ft for 2d6 HP.' },
+      { id: 'leomunds-tiny-hut', name: "Leomund's Tiny Hut", level: 3, time: '1m', range: 'Self (10 ft)', duration: '8 hours', conc: false, ritual: true, domain: true, prepared: true, summary: '10-ft opaque dome shelters up to 9 Medium creatures; blocks attacks & spells.' },
+
+      // Default 8 Prepared Cleric Spells (Matches Lv 5 + WIS +3 = 8)
+      { id: 'bless', name: 'Bless', level: 1, time: '1A', range: '30 ft', duration: 'Conc, 1m', conc: true, ritual: false, domain: false, prepared: true, summary: 'Up to 3 creatures (+1/lvl) add +1d4 to all attack rolls and saving throws.' },
+      { id: 'healing-word', name: 'Healing Word', level: 1, time: '1BA', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'Bonus Action heal 1d4 + WIS (+1d4/lvl) to a visible creature within 60 ft.' },
+      { id: 'guiding-bolt', name: 'Guiding Bolt', level: 1, time: '1A', range: '120 ft', duration: '1 round', conc: false, ritual: false, domain: false, prepared: true, summary: 'Ranged spell attack: 4d6 (+1d6/lvl) radiant; next attack against target has advantage.' },
+      { id: 'spiritual-weapon', name: 'Spiritual Weapon', level: 2, time: '1BA', range: '60 ft', duration: '1 min', conc: false, ritual: false, domain: false, prepared: true, summary: 'No Conc! 1BA summon floating weapon: melee spell attack for 1d8 + WIS force (+1d8 per 2 lvls).' },
+      { id: 'lesser-restoration', name: 'Lesser Restoration', level: 2, time: '1A', range: 'Touch', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'End 1 disease or condition: blinded, deafened, paralyzed, or poisoned.' },
+      { id: 'spirit-guardians', name: 'Spirit Guardians', level: 3, time: '1A', range: 'Self (15 ft)', duration: 'Conc, 10m', conc: true, ritual: false, domain: false, prepared: true, summary: '15-ft aura halves enemy speed; WIS save or 3d8 (+1d8/lvl) radiant/necrotic dmg (half on save).' },
+      { id: 'revivify', name: 'Revivify', level: 3, time: '1A', range: 'Touch', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'Return creature dead ≤ 1 min to life with 1 HP (consumes 300 gp diamonds).' },
+      { id: 'dispel-magic', name: 'Dispel Magic', level: 3, time: '1A', range: '120 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'End spells of 3rd level or lower on target; spellcasting check (DC 10 + lvl) for higher.' },
+
+      // Extra Unprepared Cleric Spells in Pool
+      { id: 'command', name: 'Command', level: 1, time: '1A', range: '60 ft', duration: '1 round', conc: false, ritual: false, domain: false, prepared: false, summary: 'WIS save or obey 1-word command (Grovel, Flee, Drop, Halt) (+1 target/lvl).' },
+      { id: 'shield-of-faith', name: 'Shield of Faith', level: 1, time: '1BA', range: '60 ft', duration: 'Conc, 10m', conc: true, ritual: false, domain: false, prepared: false, summary: '1BA shimmering field grants +2 AC to 1 creature within 60 ft.' },
+      { id: 'detect-magic', name: 'Detect Magic', level: 1, time: '1A', range: 'Self (30 ft)', duration: 'Conc, 10m', conc: true, ritual: true, domain: false, prepared: false, summary: 'Sense magic within 30 ft and see faint aura/school around visible magic.' },
+      { id: 'aid', name: 'Aid', level: 2, time: '1A', range: '30 ft', duration: '8 hours', conc: false, ritual: false, domain: false, prepared: false, summary: 'No Conc: Up to 3 allies gain +5 current and max HP (+5 per slot lvl above 2nd).' },
+      { id: 'hold-person', name: 'Hold Person', level: 2, time: '1A', range: '60 ft', duration: 'Conc, 1m', conc: true, ritual: false, domain: false, prepared: false, summary: 'Humanoid WIS save or Paralyzed (auto-crits within 5 ft; saves end of turn).' },
+      { id: 'mass-healing-word', name: 'Mass Healing Word', level: 3, time: '1BA', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: false, summary: '1BA heal up to 6 visible creatures within 60 ft for 1d4 + WIS HP.' }
+    ];
+
+    const DEFAULT_STATE = {
+      wisMod: 3,          // Toggleable +3 / +4 (PB is +3 at Lv 5 -> Atk +6/+7, DC 14/15, Prep 8/9)
+      lv6Mode: false,     // False = 1 CD charge (Lv 5), True = 2 CD charges (Lv 6)
+      warCaster: false,
+      conMod: 4,          // +4 CON save
+      slots: {
+        1: [true, true, true, true],
+        2: [true, true, true],
+        3: [true, true]
+      },
+      cdRemaining: 1,
+      harnessUsed: false,
+      sanctuary: {
+        active: false,
+        round: 1,
+        conditionReminderAck: false
+      },
+      concentration: null, // { id, name, level, round }
+      tempHP: {
+        amount: 0,
+        source: 'None active'
+      },
+      resources: {
+        adrenalineRush: 3, // PB = 3
+        stepsOfNight: 3,   // PB = 3
+        eyesShared: false
+      },
+      spells: INITIAL_SPELLS
+    };
+
+    const STORAGE_KEY = 'brium_questsheet_aura_hud_v2';
+    let state = loadState();
+    let currentFilter = 'ALL';
+    let pendingThpCandidate = null; // { amount, source }
+    let pendingCastSpell = null;
+
+    // =========================================================================
+    // 2. PERSISTENCE & TOAST NOTIFICATIONS
+    // =========================================================================
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return {
+            ...DEFAULT_STATE,
+            ...parsed,
+            slots: { ...DEFAULT_STATE.slots, ...(parsed.slots || {}) },
+            sanctuary: { ...DEFAULT_STATE.sanctuary, ...(parsed.sanctuary || {}) },
+            tempHP: { ...DEFAULT_STATE.tempHP, ...(parsed.tempHP || {}) },
+            resources: { ...DEFAULT_STATE.resources, ...(parsed.resources || {}) },
+            spells: Array.isArray(parsed.spells) ? parsed.spells : INITIAL_SPELLS
+          };
+        }
+      } catch (e) {
+        console.warn('Failed to parse localStorage:', e);
+      }
+      return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.warn('Failed to save state:', e);
+      }
+    }
+
+    function showToast(msg, tone = 'violet') {
+      const box = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      const styles = {
+        violet: 'bg-void-900/95 border-violet-400/60 text-violet-100',
+        gold: 'bg-amber-950/95 border-amber-400/70 text-amber-100',
+        emerald: 'bg-emerald-950/95 border-emerald-400/70 text-emerald-100',
+        danger: 'bg-rose-950/95 border-rose-400/70 text-rose-100'
+      };
+      el.className = `px-3.5 py-2.5 rounded-xl border shadow-2xl text-xs font-semibold text-center backdrop-blur-md transition-all duration-200 translate-y-2 opacity-0 ${styles[tone] || styles.violet}`;
+      el.textContent = msg;
+      box.appendChild(el);
+      requestAnimationFrame(() => el.classList.remove('translate-y-2', 'opacity-0'));
+      setTimeout(() => {
+        el.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => el.remove(), 220);
+      }, 2800);
+    }
+
+    // =========================================================================
+    // 3. DERIVED STATS & HEADER CONTROLS
+    // =========================================================================
+    function getSpellAttack() { return 3 + state.wisMod; } // PB +3 + WIS
+    function getSpellSaveDC() { return 8 + 3 + state.wisMod; } // 8 + PB +3 + WIS
+    function getPrepLimit() { return 5 + state.wisMod; } // Lv 5 + WIS
+    function getMaxCD() { return state.lv6Mode ? 2 : 1; }
+
+    function toggleWisMod() {
+      state.wisMod = state.wisMod === 3 ? 4 : 3;
+      saveState();
+      renderAll();
+      showToast(`WIS Mod set to +${state.wisMod} (Save DC ${getSpellSaveDC()}, Prep Limit ${getPrepLimit()})`, 'violet');
+    }
+
+    function toggleSpellSlot(level, idx) {
+      state.slots[level][idx] = !state.slots[level][idx];
+      saveState();
+      renderHeader();
+    }
+
+    function performShortRest() {
+      state.cdRemaining = getMaxCD();
+      saveState();
+      renderChannelDivinityHUD();
+      showToast(`Short Rest: Channel Divinity restored (${state.cdRemaining}/${getMaxCD()})!`, 'gold');
+    }
+
+    function openLongRestConfirm() {
+      document.getElementById('long-rest-banner').classList.remove('hidden');
+    }
+
+    function closeLongRestConfirm() {
+      document.getElementById('long-rest-banner').classList.add('hidden');
+    }
+
+    function confirmLongRest() {
+      state.slots = {
+        1: [true, true, true, true],
+        2: [true, true, true],
+        3: [true, true]
+      };
+      state.cdRemaining = getMaxCD();
+      state.harnessUsed = false;
+      state.sanctuary = { active: false, round: 1, conditionReminderAck: false };
+      state.concentration = null;
+      state.tempHP = { amount: 0, source: 'Cleared on Long Rest' };
+      state.resources.adrenalineRush = 3;
+      state.resources.stepsOfNight = 3;
+      state.resources.eyesShared = false;
+      pendingThpCandidate = null;
+      closeLongRestConfirm();
+      saveState();
+      renderAll();
+      showToast('Long Rest Complete: All slots, Channel Divinity & Orc/Twilight features reset!', 'emerald');
+    }
+
+    // =========================================================================
+    // 4. ACTIVE AURA HUD (CHANNEL DIVINITY STATE MACHINE)
+    // =========================================================================
+    function toggleLv6Mode() {
+      state.lv6Mode = !state.lv6Mode;
+      const maxCd = getMaxCD();
+      if (state.cdRemaining > maxCd) state.cdRemaining = maxCd;
+      if (state.lv6Mode && state.cdRemaining === 1) state.cdRemaining = 2;
+      saveState();
+      renderChannelDivinityHUD();
+      showToast(state.lv6Mode ? 'Lv. 6 Mode Enabled: 2 Channel Divinity Charges' : 'Lv. 5 Mode: 1 Channel Divinity Charge', 'violet');
+    }
+
+    function toggleCdOrb(index) {
+      const maxCd = getMaxCD();
+      if (index < state.cdRemaining) {
+        state.cdRemaining = index;
+      } else {
+        state.cdRemaining = Math.min(maxCd, index + 1);
+      }
+      saveState();
+      renderChannelDivinityHUD();
+    }
+
+    function activateTwilightSanctuary() {
+      if (state.cdRemaining <= 0) {
+        showToast('No Channel Divinity charges left! Take a Short or Long Rest.', 'danger');
+        return;
+      }
+      state.cdRemaining -= 1;
+      state.sanctuary = {
+        active: true,
+        round: 1,
+        conditionReminderAck: false
+      };
+      pendingThpCandidate = null;
+      saveState();
+      renderAll();
+      showToast('Twilight Sanctuary Activated! 30-ft Dim Light Sphere (Round 1/10)', 'gold');
+    }
+
+    function dismissTwilightSanctuary() {
+      state.sanctuary.active = false;
+      state.sanctuary.round = 1;
+      pendingThpCandidate = null;
+      saveState();
+      renderAll();
+      showToast('Twilight Sanctuary dismissed.', 'violet');
+    }
+
+    function stepAuraRound(delta) {
+      if (!state.sanctuary.active) return;
+      const nextRound = state.sanctuary.round + delta;
+      if (nextRound < 1) return;
+      if (nextRound > 10) {
+        dismissTwilightSanctuary();
+        showToast('1 Minute (10 Rounds) elapsed — Twilight Sanctuary has ended!', 'gold');
+        return;
+      }
+      state.sanctuary.round = nextRound;
+      saveState();
+      renderChannelDivinityHUD();
+      if (nextRound === 10) {
+        showToast('Final Round (10/10)! Aura will end after this round.', 'gold');
+      }
+    }
+
+    function rollSanctuaryTHP() {
+      const d6 = Math.floor(Math.random() * 6) + 1;
+      const total = d6 + 5; // Cleric Level 5
+      evaluateSanctuaryTHP(total, d6);
+    }
+
+    function evaluateSanctuaryTHP(total, dieRoll) {
+      const label = document.getElementById('sanctuary-last-roll');
+      label.textContent = `Rolled 1d6 (${dieRoll}) + 5 = ${total} Temp HP`;
+
+      const sourceLabel = `Twilight Sanctuary (1d6[${dieRoll}]+5)`;
+      const current = state.tempHP.amount || 0;
+
+      if (total > current) {
+        state.tempHP.amount = total;
+        state.tempHP.source = sourceLabel;
+        pendingThpCandidate = null;
+        document.getElementById('thp-conflict-banner').classList.add('hidden');
+        saveState();
+        renderTempHP();
+        showToast(`Applied ${total} Temp HP to Brium!`, 'emerald');
+      } else {
+        // Smart Non-Stacking Conflict Prompt
+        pendingThpCandidate = { amount: total, source: sourceLabel };
+        const banner = document.getElementById('thp-conflict-banner');
+        document.getElementById('thp-conflict-text').textContent =
+          `Non-Stacking Rule: Current ${current} THP (${state.tempHP.source}) ≥ new ${total} THP.`;
+        document.getElementById('btn-keep-thp').textContent = `Keep Current (${current} THP)`;
+        document.getElementById('btn-replace-thp').textContent = `Replace with ${total} THP`;
+        banner.classList.remove('hidden');
+      }
+    }
+
+    function resolveThpConflict(shouldReplace) {
+      const banner = document.getElementById('thp-conflict-banner');
+      banner.classList.add('hidden');
+      if (shouldReplace && pendingThpCandidate) {
+        state.tempHP.amount = pendingThpCandidate.amount;
+        state.tempHP.source = pendingThpCandidate.source;
+        saveState();
+        renderTempHP();
+        showToast(`Replaced Temp HP with ${pendingThpCandidate.amount} THP.`, 'gold');
+      } else {
+        showToast(`Kept higher ${state.tempHP.amount} THP!`, 'emerald');
+      }
+      pendingThpCandidate = null;
+    }
+
+    function toggleConditionReminder() {
+      state.sanctuary.conditionReminderAck = !state.sanctuary.conditionReminderAck;
+      saveState();
+      renderChannelDivinityHUD();
+    }
+
+    function useTurnUndead() {
+      if (state.cdRemaining <= 0) {
+        showToast('No Channel Divinity charges left!', 'danger');
+        return;
+      }
+      state.cdRemaining -= 1;
+      saveState();
+      renderChannelDivinityHUD();
+      showToast(`Turn / Destroy Undead! WIS Save DC ${getSpellSaveDC()} (CR ≤ 1/2 destroyed)`, 'gold');
+    }
+
+    // Harness Divine Power (1/Long Rest)
+    function openHarnessModal() {
+      if (state.harnessUsed) {
+        showToast('Harness Divine Power already used until Long Rest!', 'danger');
+        return;
+      }
+      if (state.cdRemaining <= 0) {
+        showToast('Requires an available Channel Divinity charge!', 'danger');
+        return;
+      }
+
+      const choices = document.getElementById('harness-slot-choices');
+      choices.innerHTML = '';
+      let hasExpendedSlot = false;
+
+      [1, 2, 3].forEach(lvl => {
+        const avail = state.slots[lvl].filter(Boolean).length;
+        const max = state.slots[lvl].length;
+        const canRecover = avail < max;
+        if (canRecover) hasExpendedSlot = true;
+
+        const btn = document.createElement('button');
+        btn.disabled = !canRecover;
+        btn.onclick = () => confirmHarnessPower(lvl);
+        btn.className = canRecover
+          ? 'min-h-[54px] p-2 rounded-xl bg-violet-600/25 hover:bg-violet-500/35 border border-violet-400/50 flex flex-col items-center justify-center active:scale-95'
+          : 'min-h-[54px] p-2 rounded-xl bg-void-950 border border-slate-800 opacity-40 flex flex-col items-center justify-center cursor-not-allowed';
+
+        btn.innerHTML = `
+          <span class="text-xs font-bold text-violet-200">${ordinal(lvl)} Slot</span>
+          <span class="font-mono text-[11px] text-slate-400">${avail}/${max}</span>
+        `;
+        choices.appendChild(btn);
+      });
+
+      if (!hasExpendedSlot) {
+        showToast('All 1st–3rd level spell slots are already full!', 'violet');
+        return;
+      }
+      document.getElementById('harness-modal').classList.remove('hidden');
+    }
+
+    function closeHarnessModal() {
+      document.getElementById('harness-modal').classList.add('hidden');
+    }
+
+    function confirmHarnessPower(lvl) {
+      const spentIdx = state.slots[lvl].indexOf(false);
+      if (spentIdx === -1 || state.cdRemaining <= 0 || state.harnessUsed) return;
+
+      state.slots[lvl][spentIdx] = true;
+      state.cdRemaining -= 1;
+      state.harnessUsed = true;
+      closeHarnessModal();
+      saveState();
+      renderAll();
+      showToast(`Harness Divine Power: Recovered one ${ordinal(lvl)}-level spell slot!`, 'emerald');
+    }
+
+    // =========================================================================
+    // 5. CONCENTRATION & TEMP HP POOL
+    // =========================================================================
+    function toggleWarCaster() {
+      state.warCaster = !state.warCaster;
+      saveState();
+      renderConcentration();
+    }
+
+    function rollConSaveCheck() {
+      const d20a = Math.floor(Math.random() * 20) + 1;
+      const d20b = Math.floor(Math.random() * 20) + 1;
+      const bestDie = state.warCaster ? Math.max(d20a, d20b) : d20a;
+      const total = bestDie + state.conMod;
+      const detail = state.warCaster ? `Adv [${d20a}, ${d20b}] + ${state.conMod}` : `1d20 [${d20a}] + ${state.conMod}`;
+      showToast(`CON Save Check: ${total} (${detail})`, 'violet');
+    }
+
+    function stepConcRound() {
+      if (!state.concentration) return;
+      state.concentration.round += 1;
+      saveState();
+      renderConcentration();
+    }
+
+    function dropConcentration() {
+      if (!state.concentration) return;
+      const name = state.concentration.name;
+      state.concentration = null;
+      saveState();
+      renderConcentration();
+      showToast(`Dropped concentration on ${name}.`, 'gold');
+    }
+
+    function applyPresetTHP(amount, source) {
+      const current = state.tempHP.amount || 0;
+      if (amount > current) {
+        state.tempHP = { amount, source };
+        saveState();
+        renderTempHP();
+        showToast(`Gained ${amount} Temp HP (${source})!`, 'emerald');
+      } else {
+        showToast(`${source} grants ${amount} THP — kept higher ${current} THP.`, 'violet');
+      }
+    }
+
+    function useAdrenalineRush() {
+      if (state.resources.adrenalineRush <= 0) {
+        showToast('No Adrenaline Rush uses left until Long Rest!', 'danger');
+        return;
+      }
+      state.resources.adrenalineRush -= 1;
+      saveState();
+      renderTempHP();
+      applyPresetTHP(3, 'Orc Adrenaline Rush (PB)');
+    }
+
+    function takeDamage() {
+      const input = document.getElementById('dmg-input');
+      const dmg = parseInt(input.value, 10);
+      if (isNaN(dmg) || dmg <= 0) return;
+      input.value = '';
+
+      const concDC = Math.max(10, Math.floor(dmg / 2));
+      const concNote = state.concentration ? ` • Roll DC ${concDC} CON save!` : '';
+      const current = state.tempHP.amount || 0;
+
+      if (current === 0) {
+        showToast(`No Temp HP! Deduct ${dmg} from real HP${concNote}`, 'danger');
+        return;
+      }
+
+      if (dmg < current) {
+        state.tempHP.amount = current - dmg;
+        saveState();
+        renderTempHP();
+        showToast(`Temp HP absorbed all ${dmg} dmg (${state.tempHP.amount} THP left)${concNote}`, 'emerald');
+      } else {
+        const overflow = dmg - current;
+        state.tempHP = { amount: 0, source: 'Depleted by damage' };
+        saveState();
+        renderTempHP();
+        if (overflow > 0) {
+          showToast(`Temp HP broken! ${overflow} overflow hits real HP${concNote}`, 'danger');
+        } else {
+          showToast(`Temp HP absorbed exact ${dmg} dmg (0 THP left)${concNote}`, 'gold');
+        }
+      }
+    }
+
+    // =========================================================================
+    // 6. PREPARED SPELLS & CASTING
+    // =========================================================================
+    function getPreparedCount() {
+      return state.spells.filter(s => s.level > 0 && !s.domain && s.prepared).length;
+    }
+
+    function togglePrepDrawer() {
+      const drawer = document.getElementById('prep-drawer');
+      drawer.classList.toggle('hidden');
+      if (!drawer.classList.contains('hidden')) renderPrepDrawer();
+    }
+
+    function togglePrepared(spellId) {
+      const sp = state.spells.find(s => s.id === spellId);
+      if (!sp || sp.domain || sp.level === 0) return;
+      if (!sp.prepared && getPreparedCount() >= getPrepLimit()) {
+        showToast(`Prepared spell limit reached (${getPrepLimit()}/${getPrepLimit()})!`, 'gold');
+        return;
+      }
+      sp.prepared = !sp.prepared;
+      saveState();
+      renderPrepDrawer();
+      renderSpells();
+    }
+
+    function addCustomSpell() {
+      const nameEl = document.getElementById('new-spell-name');
+      const lvlEl = document.getElementById('new-spell-level');
+      const timeEl = document.getElementById('new-spell-time');
+      const sumEl = document.getElementById('new-spell-summary');
+      const concEl = document.getElementById('new-spell-conc');
+
+      const name = nameEl.value.trim();
+      if (!name) return;
+      const level = parseInt(lvlEl.value, 10);
+      const canPrep = level === 0 || getPreparedCount() < getPrepLimit();
+
+      state.spells.push({
+        id: 'custom-' + Date.now(),
+        name,
+        level,
+        time: timeEl.value,
+        range: '60 ft',
+        duration: concEl.checked ? 'Conc, 1m' : 'Instant',
+        conc: concEl.checked,
+        ritual: false,
+        domain: false,
+        prepared: canPrep,
+        summary: sumEl.value.trim() || 'Custom campaign spell.'
+      });
+
+      nameEl.value = '';
+      sumEl.value = '';
+      concEl.checked = false;
+      saveState();
+      renderPrepDrawer();
+      renderSpells();
+      showToast(`Added ${name} to spellbook!`, 'emerald');
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.spell-filter-btn').forEach(btn => {
+        if (btn.dataset.filter === filter) {
+          btn.className = 'spell-filter-btn min-h-[40px] px-3 rounded-xl text-xs font-bold bg-violet-500 text-void-950 shrink-0';
+        } else {
+          const accent = btn.dataset.filter === 'DOMAIN' ? 'text-amber-300' : btn.dataset.filter === 'BA' ? 'text-emerald-300' : 'text-slate-300';
+          btn.className = `spell-filter-btn min-h-[40px] px-3 rounded-xl text-xs font-semibold bg-void-900 ${accent} border border-slate-800 shrink-0`;
+        }
+      });
+      renderSpells();
+    }
+
+    function openCastModal(spellId) {
+      const sp = state.spells.find(s => s.id === spellId);
+      if (!sp) return;
+
+      if (sp.level === 0) {
+        if (sp.conc) {
+          state.concentration = { id: sp.id, name: sp.name, level: 'Cantrip', round: 1 };
+          saveState();
+          renderConcentration();
+        }
+        showToast(`Cast ${sp.name} (Cantrip)!`, 'violet');
+        return;
+      }
+
+      pendingCastSpell = sp;
+      document.getElementById('cast-modal-subtitle').textContent = `${ordinal(sp.level)}-Level${sp.domain ? ' • Twilight Domain' : ''}`;
+      document.getElementById('cast-modal-name').textContent = sp.name;
+      document.getElementById('cast-modal-meta').textContent = `${sp.time} • ${sp.range} • ${sp.duration}`;
+      document.getElementById('cast-modal-summary').textContent = sp.summary;
+
+      const concAlert = document.getElementById('cast-conc-alert');
+      if (sp.conc && state.concentration && state.concentration.id !== sp.id) {
+        document.getElementById('cast-conc-existing').textContent = state.concentration.name;
+        concAlert.classList.remove('hidden');
+      } else {
+        concAlert.classList.add('hidden');
+      }
+
+      document.getElementById('cast-ritual-box').classList.toggle('hidden', !sp.ritual);
+
+      const grid = document.getElementById('cast-slot-grid');
+      grid.innerHTML = '';
+
+      for (let lvl = sp.level; lvl <= 3; lvl++) {
+        const avail = state.slots[lvl].filter(Boolean).length;
+        const max = state.slots[lvl].length;
+        const isUpcast = lvl > sp.level;
+
+        const btn = document.createElement('button');
+        btn.disabled = avail === 0;
+        btn.onclick = () => executeCast(lvl, false);
+        btn.className = avail > 0
+          ? 'min-h-[54px] p-2 rounded-xl bg-violet-600/25 hover:bg-violet-500/35 border border-violet-400/50 flex flex-col items-center justify-center active:scale-95'
+          : 'min-h-[54px] p-2 rounded-xl bg-void-950 border border-slate-800 opacity-40 flex flex-col items-center justify-center cursor-not-allowed';
+
+        btn.innerHTML = `
+          <span class="text-xs font-bold ${avail > 0 ? 'text-violet-200' : 'text-slate-500'}">${ordinal(lvl)} Slot${isUpcast ? ' ↑' : ''}</span>
+          <span class="font-mono text-[11px] ${avail > 0 ? 'text-amber-300' : 'text-slate-600'}">${avail}/${max}</span>
+        `;
+        grid.appendChild(btn);
+      }
+
+      document.getElementById('cast-modal').classList.remove('hidden');
+    }
+
+    function closeCastModal() {
+      pendingCastSpell = null;
+      document.getElementById('cast-modal').classList.add('hidden');
+    }
+
+    function executeCast(slotLvl, asRitual) {
+      if (!pendingCastSpell) return;
+      const sp = pendingCastSpell;
+
+      if (!asRitual) {
+        const idx = state.slots[slotLvl].lastIndexOf(true);
+        if (idx === -1) {
+          showToast(`No ${ordinal(slotLvl)}-level spell slots available!`, 'danger');
+          return;
+        }
+        state.slots[slotLvl][idx] = false;
+      }
+
+      if (sp.conc) {
+        state.concentration = {
+          id: sp.id,
+          name: sp.name,
+          level: asRitual ? 'Ritual' : ordinal(slotLvl),
+          round: 1
+        };
+      }
+
+      closeCastModal();
+      saveState();
+      renderHeader();
+      renderConcentration();
+      renderSpells();
+      showToast(`Cast ${sp.name}${asRitual ? ' (Ritual)' : ` (${ordinal(slotLvl)} Slot)`}!`, 'emerald');
+    }
+
+    // =========================================================================
+    // 7. TWILIGHT FEATURES & JSON SYNC
+    // =========================================================================
+    function toggleEyesOfNight() {
+      state.resources.eyesShared = !state.resources.eyesShared;
+      saveState();
+      renderTwilightFeatures();
+      if (state.resources.eyesShared) {
+        showToast(`Eyes of Night shared with up to ${state.wisMod} allies (1 hour)!`, 'violet');
+      }
+    }
+
+    function useStepsOfNight() {
+      if (state.resources.stepsOfNight <= 0) {
+        showToast('No Steps of Night charges remaining until Long Rest!', 'danger');
+        return;
+      }
+      state.resources.stepsOfNight -= 1;
+      saveState();
+      renderTwilightFeatures();
+      showToast('Steps of Night: Flying speed active for 1 minute!', 'gold');
+    }
+
+    function openJsonModal() {
+      document.getElementById('json-box').value = JSON.stringify(state, null, 2);
+      document.getElementById('json-modal').classList.remove('hidden');
+    }
+
+    function closeJsonModal() {
+      document.getElementById('json-modal').classList.add('hidden');
+    }
+
+    function copyJson() {
+      const box = document.getElementById('json-box');
+      box.select();
+      document.execCommand('copy');
+      showToast('QuestSheet JSON copied to clipboard!', 'emerald');
+    }
+
+    function importJson() {
+      try {
+        const parsed = JSON.parse(document.getElementById('json-box').value);
+        if (!parsed.slots || !parsed.spells) throw new Error('Invalid structure');
+        state = { ...DEFAULT_STATE, ...parsed };
+        saveState();
+        renderAll();
+        closeJsonModal();
+        showToast('QuestSheet JSON imported!', 'emerald');
+      } catch (e) {
+        showToast('Invalid JSON format — please check syntax.', 'danger');
+      }
+    }
+
+    // =========================================================================
+    // 8. RENDERING PIPELINE
+    // =========================================================================
+    function ordinal(n) {
+      return n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+    }
+
+    function renderHeader() {
+      document.getElementById('hdr-wis-mod').textContent = `+${state.wisMod}`;
+      document.getElementById('hdr-spell-atk').textContent = `+${getSpellAttack()}`;
+      document.getElementById('hdr-save-dc').textContent = `${getSpellSaveDC()}`;
+
+      [1, 2, 3].forEach(lvl => {
+        const slots = state.slots[lvl];
+        const avail = slots.filter(Boolean).length;
+        document.getElementById(`hdr-slot-count-${lvl}`).textContent = `${avail}/${slots.length}`;
+
+        const box = document.getElementById(`hdr-pips-${lvl}`);
+        box.innerHTML = '';
+        slots.forEach((isAvail, i) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.setAttribute('aria-label', `${ordinal(lvl)} level slot ${i + 1}: ${isAvail ? 'Available' : 'Spent'}`);
+          btn.onclick = () => toggleSpellSlot(lvl, i);
+          btn.className = 'min-w-[28px] min-h-[28px] flex items-center justify-center rounded-full focus:outline-none group';
+          btn.innerHTML = `<span class="slot-pip ${isAvail ? 'available' : 'spent'} w-[17px] h-[17px] rounded-full border flex items-center justify-center group-active:scale-90">${
+            isAvail
+              ? '<span class="w-1 h-1 rounded-full bg-violet-100/75"></span>'
+              : ''
+          }</span>`;
+          box.appendChild(btn);
+        });
+      });
+
+      const limit = getPrepLimit();
+      const count = getPreparedCount();
+      document.getElementById('prep-summary-text').textContent = `${count}/${limit}`;
+      document.getElementById('prep-btn-count').textContent = `${count}/${limit}`;
+      document.getElementById('prep-limit-val').textContent = limit;
+    }
+
+    function renderChannelDivinityHUD() {
+      const card = document.getElementById('cd-hud-card');
+      const idleBox = document.getElementById('cd-state-idle');
+      const activeBox = document.getElementById('cd-state-active');
+      const maxCd = getMaxCD();
+
+      // Orbs (Smaller circular matte amber pips inside generous 28px touch targets)
+      const orbBox = document.getElementById('cd-orbs-container');
+      orbBox.innerHTML = '';
+      for (let i = 0; i < maxCd; i++) {
+        const isAvail = i < state.cdRemaining;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('aria-label', `Channel Divinity charge ${i + 1}: ${isAvail ? 'Available' : 'Expended'}`);
+        btn.onclick = () => toggleCdOrb(i);
+        btn.className = 'min-w-[28px] min-h-[28px] flex items-center justify-center rounded-full focus:outline-none group';
+        btn.innerHTML = `<span class="cd-orb ${isAvail ? 'available' : 'spent'} w-[18px] h-[18px] rounded-full border flex items-center justify-center group-active:scale-90">${
+          isAvail ? '<span class="w-1 h-1 rounded-full bg-amber-100/80"></span>' : ''
+        }</span>`;
+        orbBox.appendChild(btn);
+      }
+
+      document.getElementById('cd-charge-label').textContent = `${state.cdRemaining} / ${maxCd}`;
+      const lv6Btn = document.getElementById('btn-lv6-toggle');
+      lv6Btn.textContent = state.lv6Mode ? 'Lv.6 (2 CD)' : 'Lv.5 (1 CD)';
+      lv6Btn.className = state.lv6Mode
+        ? 'min-h-[36px] px-2 rounded-lg bg-violet-500/20 border border-violet-400/50 text-[10px] font-bold text-violet-200 active:scale-95 transition'
+        : 'min-h-[36px] px-2 rounded-lg bg-void-950 border border-slate-700 text-[10px] font-semibold text-slate-400 active:scale-95 transition';
+
+      if (state.sanctuary.active) {
+        card.className = 'rounded-2xl active-sanctuary-card border-2 p-3.5 transition-all';
+        idleBox.classList.add('hidden');
+        activeBox.classList.remove('hidden');
+
+        const r = state.sanctuary.round;
+        const secsLeft = Math.max(0, (11 - r) * 6);
+        document.getElementById('aura-round-num').textContent = r;
+        document.getElementById('aura-seconds-left').textContent = secsLeft;
+        document.getElementById('aura-progress-bar').style.width = `${(secsLeft / 60) * 100}%`;
+
+        const condBtn = document.getElementById('btn-condition-reminder');
+        const condPill = document.getElementById('cond-status-pill');
+        if (state.sanctuary.conditionReminderAck) {
+          condBtn.className = 'w-full min-h-[44px] px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-400/45 flex items-center justify-between text-left active:scale-[0.99] transition';
+          condPill.textContent = 'Checked ✓';
+          condPill.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/25 text-emerald-200';
+        } else {
+          condBtn.className = 'w-full min-h-[44px] px-3 py-2 rounded-xl bg-violet-950/70 border border-violet-400/35 flex items-center justify-between text-left active:scale-[0.99] transition';
+          condPill.textContent = 'Reminder Active';
+          condPill.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-violet-500/20 text-violet-200';
+        }
+      } else {
+        card.className = 'rounded-2xl bg-void-900 border border-violet-500/35 p-3.5 shadow-lg transition-all';
+        idleBox.classList.remove('hidden');
+        activeBox.classList.add('hidden');
+
+        document.getElementById('cd-turn-dc').textContent = getSpellSaveDC();
+        const harnessBtn = document.getElementById('btn-harness-power');
+        const harnessBadge = document.getElementById('harness-badge');
+        harnessBadge.textContent = state.harnessUsed ? '0/1 LR' : '1/1 LR';
+        harnessBtn.classList.toggle('opacity-50', state.harnessUsed);
+      }
+    }
+
+    function renderConcentration() {
+      const card = document.getElementById('conc-card');
+      const dot = document.getElementById('conc-dot');
+      const emptyEl = document.getElementById('conc-empty');
+      const activeEl = document.getElementById('conc-active');
+      const wcBtn = document.getElementById('btn-warcaster');
+
+      wcBtn.textContent = state.warCaster ? 'War Caster: ADV' : 'War Caster: Off';
+      wcBtn.className = state.warCaster
+        ? 'min-h-[34px] px-2 rounded-lg bg-amber-500/20 border border-amber-400/50 text-[10px] font-bold text-amber-200 active:scale-95'
+        : 'min-h-[34px] px-2 rounded-lg bg-void-950 border border-slate-700 text-[10px] font-semibold text-slate-400 active:scale-95';
+
+      if (state.concentration) {
+        card.className = 'rounded-2xl bg-void-900 border border-amber-400/65 p-3.5 shadow-md shadow-amber-950/30 transition-all';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]';
+        emptyEl.classList.add('hidden');
+        activeEl.classList.remove('hidden');
+        document.getElementById('conc-name').textContent = state.concentration.name;
+        document.getElementById('conc-lvl-badge').textContent = state.concentration.level;
+        document.getElementById('conc-round').textContent = state.concentration.round;
+      } else {
+        card.className = 'rounded-2xl bg-void-900 border border-slate-800 p-3.5 transition-all';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-600';
+        emptyEl.classList.remove('hidden');
+        activeEl.classList.add('hidden');
+      }
+    }
+
+    function renderTempHP() {
+      document.getElementById('thp-value').textContent = state.tempHP.amount;
+      document.getElementById('thp-source-label').textContent = `Source: ${state.tempHP.source}`;
+
+      const rush = state.resources.adrenalineRush;
+      document.getElementById('adrenaline-count').textContent = `${rush}/3`;
+      document.getElementById('btn-adrenaline').classList.toggle('opacity-50', rush === 0);
+
+      const pipsEl = document.getElementById('adrenaline-pips');
+      pipsEl.innerHTML = '';
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('span');
+        dot.className = `res-pip w-1.5 h-1.5 rounded-full border ${i < rush ? 'available-emerald' : 'spent'}`;
+        pipsEl.appendChild(dot);
+      }
+    }
+
+    function renderPrepDrawer() {
+      const box = document.getElementById('prep-list-container');
+      box.innerHTML = '';
+
+      state.spells
+        .filter(s => s.level > 0 && !s.domain)
+        .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
+        .forEach(sp => {
+          const row = document.createElement('button');
+          row.type = 'button';
+          row.onclick = () => togglePrepared(sp.id);
+          row.className = `w-full min-h-[44px] px-3 py-2 rounded-xl border flex items-center justify-between text-left transition ${
+            sp.prepared
+              ? 'bg-violet-500/15 border-violet-400/50 text-slate-100'
+              : 'bg-void-950 border-slate-800 text-slate-400'
+          }`;
+          row.innerHTML = `
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-void-900 text-violet-300 shrink-0">${ordinal(sp.level)}</span>
+              <span class="text-xs font-semibold truncate">${sp.name}</span>
+              ${sp.conc ? '<span class="text-[10px] font-bold text-amber-400">(C)</span>' : ''}
+            </div>
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded ${
+              sp.prepared ? 'bg-violet-500 text-void-950' : 'bg-void-900 text-slate-400'
+            }">${sp.prepared ? 'Prepared' : 'Prepare'}</span>
+          `;
+          box.appendChild(row);
+        });
+    }
+
+    function renderSpells() {
+      const container = document.getElementById('spells-container');
+      container.innerHTML = '';
+
+      const filtered = state.spells.filter(sp => {
+        if (!sp.prepared && !sp.domain && sp.level > 0) return false;
+        if (currentFilter === 'ALL') return true;
+        if (currentFilter === 'DOMAIN') return sp.domain;
+        if (currentFilter === 'BA') return sp.time === '1BA';
+        return String(sp.level) === currentFilter;
+      });
+
+      const sections = [
+        { level: 0, title: 'Cantrips (At Will)' },
+        { level: 1, title: '1st-Level Spells' },
+        { level: 2, title: '2nd-Level Spells' },
+        { level: 3, title: '3rd-Level Spells' }
+      ];
+
+      sections.forEach(sec => {
+        const list = filtered.filter(s => s.level === sec.level);
+        if (list.length === 0) return;
+
+        // Sort Domain spells to top of each level group
+        list.sort((a, b) => (b.domain ? 1 : 0) - (a.domain ? 1 : 0));
+
+        const groupEl = document.createElement('div');
+        groupEl.className = 'space-y-2';
+        groupEl.innerHTML = `
+          <div class="flex items-center justify-between px-1">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-violet-300">${sec.title}</h3>
+            <span class="text-[11px] text-slate-500">${list.length}</span>
+          </div>
+        `;
+
+        list.forEach(sp => {
+          const isConcActive = state.concentration && state.concentration.id === sp.id;
+          const card = document.createElement('div');
+          card.className = `rounded-2xl bg-void-900 border ${
+            isConcActive
+              ? 'border-amber-400/80 shadow-md shadow-amber-950/30'
+              : sp.domain
+              ? 'border-amber-500/35'
+              : 'border-slate-800'
+          } p-3 flex items-center justify-between gap-2.5`;
+
+          card.innerHTML = `
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                <span class="font-bold text-sm text-slate-100">${sp.name}</span>
+                ${sp.domain ? '<span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/40">★ Domain</span>' : ''}
+                ${sp.conc ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-400/35">C</span>' : ''}
+                ${sp.ritual ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 border border-sky-400/35">R</span>' : ''}
+              </div>
+              <div class="flex items-center gap-1.5 text-[11px] text-slate-400 mb-1">
+                <span class="font-mono px-1.5 py-0.2 rounded bg-void-950 border border-slate-800 text-violet-200">${sp.time}</span>
+                <span>• ${sp.range}</span>
+                <span>• ${sp.duration}</span>
+              </div>
+              <p class="text-xs text-slate-300/90 leading-snug">${sp.summary}</p>
+            </div>
+            <button onclick="openCastModal('${sp.id}')" class="min-h-[46px] min-w-[64px] px-3 rounded-xl ${
+              sp.level === 0
+                ? 'bg-void-800 hover:bg-void-700 text-slate-100 border border-slate-700'
+                : 'bg-gradient-to-b from-violet-500 to-indigo-600 hover:from-violet-400 hover:to-indigo-500 text-white shadow-md shadow-violet-950/60'
+            } text-xs font-bold shrink-0 active:scale-95 transition">
+              Cast
+            </button>
+          `;
+          groupEl.appendChild(card);
+        });
+
+        container.appendChild(groupEl);
+      });
+    }
+
+    function renderTwilightFeatures() {
+      document.getElementById('eyes-allies-count').textContent = state.wisMod;
+      const eyesBtn = document.getElementById('btn-eyes-night');
+      if (state.resources.eyesShared) {
+        eyesBtn.textContent = 'Shared (1h Active)';
+        eyesBtn.className = 'mt-2.5 min-h-[40px] w-full rounded-xl bg-sky-500/30 border border-sky-300 text-sky-100 text-xs font-bold active:scale-95 transition';
+      } else {
+        eyesBtn.textContent = 'Free Share: 1/1';
+        eyesBtn.className = 'mt-2.5 min-h-[40px] w-full rounded-xl bg-sky-500/15 border border-sky-400/35 text-sky-300 text-xs font-semibold active:scale-95 transition';
+      }
+
+      const stepsCount = state.resources.stepsOfNight;
+      document.getElementById('steps-night-count').textContent = `${stepsCount}/3`;
+      const stepsBtn = document.getElementById('btn-steps-night');
+      stepsBtn.textContent = stepsCount > 0 ? 'Fly (1BA)' : '0/3 Left';
+      stepsBtn.classList.toggle('opacity-50', stepsCount === 0);
+
+      const stepsPipsEl = document.getElementById('steps-night-pips');
+      stepsPipsEl.innerHTML = '';
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('span');
+        dot.className = `res-pip w-1.5 h-1.5 rounded-full border ${i < stepsCount ? 'available-violet' : 'spent'}`;
+        stepsPipsEl.appendChild(dot);
+      }
+
+      // Highlight Steps of Night in gold when Twilight Sanctuary is active!
+      const stepsCard = document.getElementById('steps-night-card');
+      const dimBadge = document.getElementById('dim-light-badge');
+      if (state.sanctuary.active) {
+        stepsCard.classList.add('steps-synergy-glow');
+        dimBadge.classList.remove('hidden');
+      } else {
+        stepsCard.classList.remove('steps-synergy-glow');
+        dimBadge.classList.add('hidden');
+      }
+    }
+
+    function renderAll() {
+      renderHeader();
+      renderChannelDivinityHUD();
+      renderConcentration();
+      renderTempHP();
+      renderPrepDrawer();
+      renderSpells();
+      renderTwilightFeatures();
+    }
+
+    window.addEventListener('DOMContentLoaded', renderAll);
+  </script>
+</body>
+</html>
