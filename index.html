@@ -3,64 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <!-- PWA / Standalone App Config & Custom Twilight Moon Icon -->
-<meta name="theme-color" content="#0f0d1a">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Brium Spells">
-
-<!-- Inline SVG Favicon & Apple Touch Icon -->
-<link id="app-icon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3CradialGradient id='bg' cx='50%25' cy='40%25' r='70%25'%3E%3Cstop offset='0%25' stop-color='%23271f47'/%3E%3Cstop offset='100%25' stop-color='%230d0b16'/%3E%3C/radialGradient%3E%3ClinearGradient id='moon' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fde68a'/%3E%3Cstop offset='55%25' stop-color='%23eab308'/%3E%3Cstop offset='100%25' stop-color='%23b45309'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='112' fill='url(%23bg)'/%3E%3Ccircle cx='256' cy='256' r='186' fill='none' stroke='%238b7ec8' stroke-width='4' stroke-opacity='0.35' stroke-dasharray='12 10'/%3E%3Cpath d='M292 128c-66 10-116 67-116 136 0 76 62 138 138 138 42 0 79-19 104-48-15 6-31 9-48 9-72 0-130-58-130-130 0-42 20-80 52-105z' fill='url(%23moon)'/%3E%3Cpolygon points='352,164 360,186 382,194 360,202 352,224 344,202 322,194 344,186' fill='%23fef08a'/%3E%3Ccircle cx='324' cy='144' r='5' fill='%23c4b5fd'/%3E%3Ccircle cx='382' cy='252' r='4' fill='%23fde047'/%3E%3C/svg%3E">
-<link id="apple-icon" rel="apple-touch-icon" href="">
-
-<script>
-  (function() {
-    // 1. Render crisp 512x512 PNG from the inline SVG so Android Chrome & iOS accept it natively
-    const svgHref = document.getElementById('app-icon').href;
-    const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 512;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, 512, 512);
-      const pngDataUrl = canvas.toDataURL('image/png');
-
-      // Attach PNG for Apple Touch Icon
-      document.getElementById('apple-icon').href = pngDataUrl;
-
-      // 2. Build dynamic Web App Manifest for standalone full-screen launch
-      const manifest = {
-        name: "Brium — Twilight Cleric Spellbook",
-        short_name: "Brium Spells",
-        description: "Level 5 Orc Twilight Domain Cleric Spellcasting & Aura HUD",
-        start_url: window.location.href.split('#')[0],
-        scope: "./",
-        display: "standalone",
-        orientation: "portrait",
-        background_color: "#0f0d1a",
-        theme_color: "#0f0d1a",
-        icons: [
-          {
-            src: pngDataUrl,
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable"
-          }
-        ]
-      };
-
-      const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
-      const manifestUrl = URL.createObjectURL(blob);
-      const link = document.createElement('link');
-      link.rel = 'manifest';
-      link.href = manifestUrl;
-      document.head.appendChild(link);
-    };
-    img.src = svgHref;
-  })();
-</script>
   <title>Brium • QuestSheet Active Aura HUD</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -578,6 +520,13 @@
             </select>
             <button onclick="addCustomSpell()" class="col-span-2 min-h-[42px] rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold">+</button>
           </div>
+          <div class="grid grid-cols-12 gap-1.5">
+            <input type="text" id="new-spell-dmg" placeholder="Damage dice (e.g. 2d8)" class="col-span-7 min-h-[40px] px-2.5 rounded-xl bg-void-950 border border-slate-700 text-xs font-mono text-slate-100" />
+            <label class="col-span-5 flex items-center justify-center gap-1.5 text-xs text-sky-300 bg-void-950 border border-slate-700 rounded-xl px-2">
+              <input type="checkbox" id="new-spell-atk" class="rounded bg-void-950 border-slate-600 text-sky-500" />
+              <span>Spell Attack</span>
+            </label>
+          </div>
           <div class="flex items-center gap-2">
             <input type="text" id="new-spell-summary" placeholder="Short mechanical effect..." class="flex-1 min-h-[40px] px-2.5 rounded-xl bg-void-950 border border-slate-700 text-xs text-slate-100" />
             <label class="flex items-center gap-1.5 text-xs text-amber-300 shrink-0 px-1">
@@ -694,6 +643,15 @@
 
       <p id="cast-modal-summary" class="text-xs text-slate-200 leading-relaxed bg-void-950 p-3 rounded-xl border border-slate-800"></p>
 
+      <!-- Quick Combat Roll Row inside Modal -->
+      <div id="cast-combat-rolls" class="hidden space-y-2 p-2.5 rounded-xl bg-void-950/90 border border-slate-800">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Combat Rolls</span>
+          <select id="cast-roll-slot-level" onchange="renderModalCombatButtons()" class="hidden px-2 py-1 rounded-lg bg-void-900 border border-slate-700 text-[11px] font-mono text-amber-300"></select>
+        </div>
+        <div id="cast-combat-btn-grid" class="flex flex-wrap gap-2"></div>
+      </div>
+
       <div id="cast-conc-alert" class="hidden p-2.5 rounded-xl bg-amber-950/80 border border-amber-500/50 text-xs text-amber-200">
         ⚠️ Concentrating on <strong id="cast-conc-existing"></strong>. Casting this will replace it!
       </div>
@@ -736,25 +694,25 @@
     const INITIAL_SPELLS = [
       // Cantrips
       { id: 'guidance', name: 'Guidance', level: 0, time: '1A', range: 'Touch', duration: 'Conc, 1m', conc: true, ritual: false, domain: false, prepared: true, summary: 'Touch 1 willing creature; add +1d4 to one ability check before spell ends.' },
-      { id: 'sacred-flame', name: 'Sacred Flame', level: 0, time: '1A', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'DEX save or 2d8 radiant damage; target gains no benefit from cover.' },
-      { id: 'toll-the-dead', name: 'Toll the Dead', level: 0, time: '1A', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'WIS save or 2d8 necrotic damage (2d12 if target is missing any HP).' },
+      { id: 'sacred-flame', name: 'Sacred Flame', level: 0, time: '1A', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, attack: false, damage: { count: 2, sides: 8, type: 'radiant' }, summary: 'DEX save or 2d8 radiant damage; target gains no benefit from cover.' },
+      { id: 'toll-the-dead', name: 'Toll the Dead', level: 0, time: '1A', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, attack: false, damage: { count: 2, sides: 8, type: 'necrotic' }, altDamage: { count: 2, sides: 12, type: 'necrotic', label: '2d12 (Injured)' }, summary: 'WIS save or 2d8 necrotic damage (2d12 if target is missing any HP).' },
       { id: 'thaumaturgy', name: 'Thaumaturgy', level: 0, time: '1A', range: '30 ft', duration: '1 min', conc: false, ritual: false, domain: false, prepared: true, summary: 'Create minor divine sign: booming voice, harmless tremors, flicker flames.' },
 
       // Twilight Domain Always-Prepared Spells (6 Pinned)
       { id: 'faerie-fire', name: 'Faerie Fire', level: 1, time: '1A', range: '60 ft', duration: 'Conc, 1m', conc: true, ritual: false, domain: true, prepared: true, summary: '20-ft cube DEX save; outlines targets in dim light, granting attack advantage & negating invisibility.' },
       { id: 'sleep', name: 'Sleep', level: 1, time: '1A', range: '90 ft', duration: '1 min', conc: false, ritual: false, domain: true, prepared: true, summary: 'Roll 5d8 (+2d8/slot lvl) HP of creatures put unconscious in 20-ft radius, lowest HP first.' },
-      { id: 'moonbeam', name: 'Moonbeam', level: 2, time: '1A', range: '120 ft', duration: 'Conc, 1m', conc: true, ritual: false, domain: true, prepared: true, summary: '5-ft radius beam; 2d10 (+1d10/lvl) radiant on entry/turn start (CON half). Shapechangers disadv.' },
+      { id: 'moonbeam', name: 'Moonbeam', level: 2, time: '1A', range: '120 ft', duration: 'Conc, 1m', conc: true, ritual: false, domain: true, prepared: true, attack: false, damage: { count: 2, sides: 10, type: 'radiant', upcastDice: 1 }, summary: '5-ft radius beam; 2d10 (+1d10/lvl) radiant on entry/turn start (CON half). Shapechangers disadv.' },
       { id: 'see-invisibility', name: 'See Invisibility', level: 2, time: '1A', range: 'Self', duration: '1 hour', conc: false, ritual: false, domain: true, prepared: true, summary: 'See invisible creatures/objects as if visible, and see into the Ethereal Plane.' },
-      { id: 'aura-of-vitality', name: 'Aura of Vitality', level: 3, time: '1A', range: 'Self (30 ft)', duration: 'Conc, 1m', conc: true, ritual: false, domain: true, prepared: true, summary: 'Use Bonus Action each turn to heal 1 creature within 30 ft for 2d6 HP.' },
+      { id: 'aura-of-vitality', name: 'Aura of Vitality', level: 3, time: '1A', range: 'Self (30 ft)', duration: 'Conc, 1m', conc: true, ritual: false, domain: true, prepared: true, attack: false, damage: { count: 2, sides: 6, type: 'healing', isHeal: true }, summary: 'Use Bonus Action each turn to heal 1 creature within 30 ft for 2d6 HP.' },
       { id: 'leomunds-tiny-hut', name: "Leomund's Tiny Hut", level: 3, time: '1m', range: 'Self (10 ft)', duration: '8 hours', conc: false, ritual: true, domain: true, prepared: true, summary: '10-ft opaque dome shelters up to 9 Medium creatures; blocks attacks & spells.' },
 
       // Default 8 Prepared Cleric Spells (Matches Lv 5 + WIS +3 = 8)
       { id: 'bless', name: 'Bless', level: 1, time: '1A', range: '30 ft', duration: 'Conc, 1m', conc: true, ritual: false, domain: false, prepared: true, summary: 'Up to 3 creatures (+1/lvl) add +1d4 to all attack rolls and saving throws.' },
-      { id: 'healing-word', name: 'Healing Word', level: 1, time: '1BA', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'Bonus Action heal 1d4 + WIS (+1d4/lvl) to a visible creature within 60 ft.' },
-      { id: 'guiding-bolt', name: 'Guiding Bolt', level: 1, time: '1A', range: '120 ft', duration: '1 round', conc: false, ritual: false, domain: false, prepared: true, summary: 'Ranged spell attack: 4d6 (+1d6/lvl) radiant; next attack against target has advantage.' },
-      { id: 'spiritual-weapon', name: 'Spiritual Weapon', level: 2, time: '1BA', range: '60 ft', duration: '1 min', conc: false, ritual: false, domain: false, prepared: true, summary: 'No Conc! 1BA summon floating weapon: melee spell attack for 1d8 + WIS force (+1d8 per 2 lvls).' },
+      { id: 'healing-word', name: 'Healing Word', level: 1, time: '1BA', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, attack: false, damage: { count: 1, sides: 4, addWis: true, type: 'healing', isHeal: true, upcastDice: 1 }, summary: 'Bonus Action heal 1d4 + WIS (+1d4/lvl) to a visible creature within 60 ft.' },
+      { id: 'guiding-bolt', name: 'Guiding Bolt', level: 1, time: '1A', range: '120 ft', duration: '1 round', conc: false, ritual: false, domain: false, prepared: true, attack: true, damage: { count: 4, sides: 6, type: 'radiant', upcastDice: 1 }, summary: 'Ranged spell attack: 4d6 (+1d6/lvl) radiant; next attack against target has advantage.' },
+      { id: 'spiritual-weapon', name: 'Spiritual Weapon', level: 2, time: '1BA', range: '60 ft', duration: '1 min', conc: false, ritual: false, domain: false, prepared: true, attack: true, damage: { count: 1, sides: 8, addWis: true, type: 'force', upcastEveryTwo: 1 }, summary: 'No Conc! 1BA summon floating weapon: melee spell attack for 1d8 + WIS force (+1d8 per 2 lvls).' },
       { id: 'lesser-restoration', name: 'Lesser Restoration', level: 2, time: '1A', range: 'Touch', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'End 1 disease or condition: blinded, deafened, paralyzed, or poisoned.' },
-      { id: 'spirit-guardians', name: 'Spirit Guardians', level: 3, time: '1A', range: 'Self (15 ft)', duration: 'Conc, 10m', conc: true, ritual: false, domain: false, prepared: true, summary: '15-ft aura halves enemy speed; WIS save or 3d8 (+1d8/lvl) radiant/necrotic dmg (half on save).' },
+      { id: 'spirit-guardians', name: 'Spirit Guardians', level: 3, time: '1A', range: 'Self (15 ft)', duration: 'Conc, 10m', conc: true, ritual: false, domain: false, prepared: true, attack: false, damage: { count: 3, sides: 8, type: 'radiant/necrotic', upcastDice: 1 }, summary: '15-ft aura halves enemy speed; WIS save or 3d8 (+1d8/lvl) radiant/necrotic dmg (half on save).' },
       { id: 'revivify', name: 'Revivify', level: 3, time: '1A', range: 'Touch', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'Return creature dead ≤ 1 min to life with 1 HP (consumes 300 gp diamonds).' },
       { id: 'dispel-magic', name: 'Dispel Magic', level: 3, time: '1A', range: '120 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: true, summary: 'End spells of 3rd level or lower on target; spellcasting check (DC 10 + lvl) for higher.' },
 
@@ -764,7 +722,7 @@
       { id: 'detect-magic', name: 'Detect Magic', level: 1, time: '1A', range: 'Self (30 ft)', duration: 'Conc, 10m', conc: true, ritual: true, domain: false, prepared: false, summary: 'Sense magic within 30 ft and see faint aura/school around visible magic.' },
       { id: 'aid', name: 'Aid', level: 2, time: '1A', range: '30 ft', duration: '8 hours', conc: false, ritual: false, domain: false, prepared: false, summary: 'No Conc: Up to 3 allies gain +5 current and max HP (+5 per slot lvl above 2nd).' },
       { id: 'hold-person', name: 'Hold Person', level: 2, time: '1A', range: '60 ft', duration: 'Conc, 1m', conc: true, ritual: false, domain: false, prepared: false, summary: 'Humanoid WIS save or Paralyzed (auto-crits within 5 ft; saves end of turn).' },
-      { id: 'mass-healing-word', name: 'Mass Healing Word', level: 3, time: '1BA', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: false, summary: '1BA heal up to 6 visible creatures within 60 ft for 1d4 + WIS HP.' }
+      { id: 'mass-healing-word', name: 'Mass Healing Word', level: 3, time: '1BA', range: '60 ft', duration: 'Instant', conc: false, ritual: false, domain: false, prepared: false, attack: false, damage: { count: 1, sides: 4, addWis: true, type: 'healing', isHeal: true, upcastDice: 1 }, summary: '1BA heal up to 6 visible creatures within 60 ft for 1d4 + WIS HP.' }
     ];
 
     const DEFAULT_STATE = {
@@ -797,20 +755,25 @@
       spells: INITIAL_SPELLS
     };
 
-    const STORAGE_KEY = 'brium_questsheet_aura_hud_v2';
+    const STORAGE_KEY = 'brium_questsheet_aura_hud_v3';
     let state = loadState();
     let currentFilter = 'ALL';
     let pendingThpCandidate = null; // { amount, source }
     let pendingCastSpell = null;
+    let lastCritSpellId = null;     // Tracks Nat 20 on a spell attack to auto-double damage dice
 
     // =========================================================================
     // 2. PERSISTENCE & TOAST NOTIFICATIONS
     // =========================================================================
     function loadState() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('brium_questsheet_aura_hud_v2');
         if (raw) {
           const parsed = JSON.parse(raw);
+          const mergedSpells = (Array.isArray(parsed.spells) ? parsed.spells : INITIAL_SPELLS).map(sp => {
+            const base = INITIAL_SPELLS.find(b => b.id === sp.id);
+            return base ? { ...base, ...sp, attack: sp.attack ?? base.attack, damage: sp.damage ?? base.damage, altDamage: sp.altDamage ?? base.altDamage } : sp;
+          });
           return {
             ...DEFAULT_STATE,
             ...parsed,
@@ -818,7 +781,7 @@
             sanctuary: { ...DEFAULT_STATE.sanctuary, ...(parsed.sanctuary || {}) },
             tempHP: { ...DEFAULT_STATE.tempHP, ...(parsed.tempHP || {}) },
             resources: { ...DEFAULT_STATE.resources, ...(parsed.resources || {}) },
-            spells: Array.isArray(parsed.spells) ? parsed.spells : INITIAL_SPELLS
+            spells: mergedSpells
           };
         }
       } catch (e) {
@@ -842,6 +805,7 @@
         violet: 'bg-void-900/95 border-violet-400/60 text-violet-100',
         gold: 'bg-amber-950/95 border-amber-400/70 text-amber-100',
         emerald: 'bg-emerald-950/95 border-emerald-400/70 text-emerald-100',
+        sky: 'bg-sky-950/95 border-sky-400/70 text-sky-100',
         danger: 'bg-rose-950/95 border-rose-400/70 text-rose-100'
       };
       el.className = `px-3.5 py-2.5 rounded-xl border shadow-2xl text-xs font-semibold text-center backdrop-blur-md transition-all duration-200 translate-y-2 opacity-0 ${styles[tone] || styles.violet}`;
@@ -851,11 +815,88 @@
       setTimeout(() => {
         el.classList.add('opacity-0', 'translate-y-2');
         setTimeout(() => el.remove(), 220);
-      }, 2800);
+      }, 3200);
     }
 
     // =========================================================================
-    // 3. DERIVED STATS & HEADER CONTROLS
+    // 3. SPELL ATTACK & DAMAGE ROLLERS
+    // =========================================================================
+    function getDamageFormula(sp, dmgSpec, castLevel = sp.level) {
+      let diceCount = dmgSpec.count;
+      if (castLevel > sp.level) {
+        const diff = castLevel - sp.level;
+        if (dmgSpec.upcastDice) diceCount += diff * dmgSpec.upcastDice;
+        if (dmgSpec.upcastEveryTwo) diceCount += Math.floor(diff / 2) * dmgSpec.upcastEveryTwo;
+      }
+      const mod = dmgSpec.addWis ? state.wisMod : 0;
+      const label = `${diceCount}d${dmgSpec.sides}${mod > 0 ? `+${mod}` : ''}`;
+      return { count: diceCount, sides: dmgSpec.sides, mod, label, type: dmgSpec.type, isHeal: !!dmgSpec.isHeal };
+    }
+
+    function rollSpellAttack(spellId) {
+      const sp = state.spells.find(s => s.id === spellId);
+      if (!sp) return;
+      const d20 = Math.floor(Math.random() * 20) + 1;
+      const bonus = getSpellAttack();
+      const total = d20 + bonus;
+
+      if (d20 === 20) {
+        lastCritSpellId = sp.id;
+        showToast(`🌟 NAT 20 CRIT! ${sp.name} To Hit: ${total} (20 + ${bonus}) — Next damage roll doubles dice!`, 'gold');
+      } else if (d20 === 1) {
+        lastCritSpellId = null;
+        showToast(`💀 NAT 1 MISS! ${sp.name} To Hit: ${total} (1 + ${bonus})`, 'danger');
+      } else {
+        lastCritSpellId = null;
+        showToast(`🎯 ${sp.name} To Hit: ${total} (1d20 [${d20}] + ${bonus})`, 'sky');
+      }
+    }
+
+    function rollSpellDamage(spellId, castLevel = null, useAlt = false) {
+      const sp = state.spells.find(s => s.id === spellId);
+      if (!sp) return;
+      const spec = useAlt && sp.altDamage ? sp.altDamage : sp.damage;
+      if (!spec) return;
+
+      const effectiveLevel = castLevel ?? sp.level;
+      const formula = getDamageFormula(sp, spec, effectiveLevel);
+      const isCrit = !formula.isHeal && lastCritSpellId === sp.id;
+      if (isCrit) lastCritSpellId = null;
+
+      const totalDice = isCrit ? formula.count * 2 : formula.count;
+      const rolls = [];
+      let sum = 0;
+      for (let i = 0; i < totalDice; i++) {
+        const r = Math.floor(Math.random() * formula.sides) + 1;
+        rolls.push(r);
+        sum += r;
+      }
+      const grandTotal = sum + formula.mod;
+      const modStr = formula.mod > 0 ? ` + ${formula.mod}` : '';
+      const diceDisplay = isCrit ? `${totalDice}d${formula.sides} CRIT` : formula.label;
+
+      if (formula.isHeal) {
+        showToast(`💚 ${sp.name} Heal: ${grandTotal} HP (${diceDisplay} [${rolls.join(', ')}]${modStr})`, 'emerald');
+      } else {
+        showToast(
+          `${isCrit ? '💥 CRIT ' : '🔥 '}${sp.name}: ${grandTotal} ${formula.type} dmg (${diceDisplay} [${rolls.join(', ')}]${modStr})`,
+          isCrit ? 'gold' : 'danger'
+        );
+      }
+    }
+
+    function parseDiceString(str) {
+      const m = (str || '').trim().match(/^(\d+)d(\d+)(?:\s*([+-])\s*(\d+))?$/i);
+      if (!m) return null;
+      const count = parseInt(m[1], 10);
+      const sides = parseInt(m[2], 10);
+      const sign = m[3] === '-' ? -1 : 1;
+      const mod = m[4] ? sign * parseInt(m[4], 10) : 0;
+      return { count, sides, mod, type: 'damage' };
+    }
+
+    // =========================================================================
+    // 4. DERIVED STATS & HEADER CONTROLS
     // =========================================================================
     function getSpellAttack() { return 3 + state.wisMod; } // PB +3 + WIS
     function getSpellSaveDC() { return 8 + 3 + state.wisMod; } // 8 + PB +3 + WIS
@@ -866,7 +907,7 @@
       state.wisMod = state.wisMod === 3 ? 4 : 3;
       saveState();
       renderAll();
-      showToast(`WIS Mod set to +${state.wisMod} (Save DC ${getSpellSaveDC()}, Prep Limit ${getPrepLimit()})`, 'violet');
+      showToast(`WIS Mod set to +${state.wisMod} (Spell Atk +${getSpellAttack()}, Save DC ${getSpellSaveDC()})`, 'violet');
     }
 
     function toggleSpellSlot(level, idx) {
@@ -905,6 +946,7 @@
       state.resources.stepsOfNight = 3;
       state.resources.eyesShared = false;
       pendingThpCandidate = null;
+      lastCritSpellId = null;
       closeLongRestConfirm();
       saveState();
       renderAll();
@@ -912,7 +954,7 @@
     }
 
     // =========================================================================
-    // 4. ACTIVE AURA HUD (CHANNEL DIVINITY STATE MACHINE)
+    // 5. ACTIVE AURA HUD (CHANNEL DIVINITY STATE MACHINE)
     // =========================================================================
     function toggleLv6Mode() {
       state.lv6Mode = !state.lv6Mode;
@@ -1000,7 +1042,6 @@
         renderTempHP();
         showToast(`Applied ${total} Temp HP to Brium!`, 'emerald');
       } else {
-        // Smart Non-Stacking Conflict Prompt
         pendingThpCandidate = { amount: total, source: sourceLabel };
         const banner = document.getElementById('thp-conflict-banner');
         document.getElementById('thp-conflict-text').textContent =
@@ -1103,7 +1144,7 @@
     }
 
     // =========================================================================
-    // 5. CONCENTRATION & TEMP HP POOL
+    // 6. CONCENTRATION & TEMP HP POOL
     // =========================================================================
     function toggleWarCaster() {
       state.warCaster = !state.warCaster;
@@ -1133,6 +1174,7 @@
       state.concentration = null;
       saveState();
       renderConcentration();
+      renderSpells();
       showToast(`Dropped concentration on ${name}.`, 'gold');
     }
 
@@ -1193,7 +1235,7 @@
     }
 
     // =========================================================================
-    // 6. PREPARED SPELLS & CASTING
+    // 7. PREPARED SPELLS & CASTING
     // =========================================================================
     function getPreparedCount() {
       return state.spells.filter(s => s.level > 0 && !s.domain && s.prepared).length;
@@ -1222,6 +1264,8 @@
       const nameEl = document.getElementById('new-spell-name');
       const lvlEl = document.getElementById('new-spell-level');
       const timeEl = document.getElementById('new-spell-time');
+      const dmgEl = document.getElementById('new-spell-dmg');
+      const atkEl = document.getElementById('new-spell-atk');
       const sumEl = document.getElementById('new-spell-summary');
       const concEl = document.getElementById('new-spell-conc');
 
@@ -1229,6 +1273,7 @@
       if (!name) return;
       const level = parseInt(lvlEl.value, 10);
       const canPrep = level === 0 || getPreparedCount() < getPrepLimit();
+      const parsedDmg = parseDiceString(dmgEl.value);
 
       state.spells.push({
         id: 'custom-' + Date.now(),
@@ -1241,10 +1286,14 @@
         ritual: false,
         domain: false,
         prepared: canPrep,
+        attack: atkEl.checked,
+        damage: parsedDmg || undefined,
         summary: sumEl.value.trim() || 'Custom campaign spell.'
       });
 
       nameEl.value = '';
+      dmgEl.value = '';
+      atkEl.checked = false;
       sumEl.value = '';
       concEl.checked = false;
       saveState();
@@ -1286,6 +1335,29 @@
       document.getElementById('cast-modal-meta').textContent = `${sp.time} • ${sp.range} • ${sp.duration}`;
       document.getElementById('cast-modal-summary').textContent = sp.summary;
 
+      // Setup Combat Roll buttons inside modal if applicable
+      const combatBox = document.getElementById('cast-combat-rolls');
+      const slotSelect = document.getElementById('cast-roll-slot-level');
+      if (sp.attack || sp.damage) {
+        combatBox.classList.remove('hidden');
+        const hasUpcast = sp.damage && (sp.damage.upcastDice || sp.damage.upcastEveryTwo) && sp.level < 3;
+        if (hasUpcast) {
+          slotSelect.classList.remove('hidden');
+          slotSelect.innerHTML = '';
+          for (let lvl = sp.level; lvl <= 3; lvl++) {
+            const opt = document.createElement('option');
+            opt.value = lvl;
+            opt.textContent = `${ordinal(lvl)} Lvl Dice`;
+            slotSelect.appendChild(opt);
+          }
+        } else {
+          slotSelect.classList.add('hidden');
+        }
+        renderModalCombatButtons();
+      } else {
+        combatBox.classList.add('hidden');
+      }
+
       const concAlert = document.getElementById('cast-conc-alert');
       if (sp.conc && state.concentration && state.concentration.id !== sp.id) {
         document.getElementById('cast-conc-existing').textContent = state.concentration.name;
@@ -1319,6 +1391,36 @@
       }
 
       document.getElementById('cast-modal').classList.remove('hidden');
+    }
+
+    function renderModalCombatButtons() {
+      const sp = pendingCastSpell;
+      if (!sp) return;
+      const btnGrid = document.getElementById('cast-combat-btn-grid');
+      const slotSelect = document.getElementById('cast-roll-slot-level');
+      const selectedLvl = !slotSelect.classList.contains('hidden') ? parseInt(slotSelect.value, 10) : sp.level;
+      btnGrid.innerHTML = '';
+
+      if (sp.attack) {
+        const atkBtn = document.createElement('button');
+        atkBtn.type = 'button';
+        atkBtn.onclick = () => rollSpellAttack(sp.id);
+        atkBtn.className = 'flex-1 min-h-[42px] px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/50 text-sky-200 font-mono text-xs font-bold active:scale-95 transition';
+        atkBtn.textContent = `🎯 To Hit (+${getSpellAttack()})`;
+        btnGrid.appendChild(atkBtn);
+      }
+
+      if (sp.damage) {
+        const f = getDamageFormula(sp, sp.damage, selectedLvl);
+        const dmgBtn = document.createElement('button');
+        dmgBtn.type = 'button';
+        dmgBtn.onclick = () => rollSpellDamage(sp.id, selectedLvl, false);
+        dmgBtn.className = f.isHeal
+          ? 'flex-1 min-h-[42px] px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-200 font-mono text-xs font-bold active:scale-95 transition'
+          : 'flex-1 min-h-[42px] px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/50 text-rose-200 font-mono text-xs font-bold active:scale-95 transition';
+        dmgBtn.textContent = `${f.isHeal ? '💚 Heal' : '🎲 Dmg'} (${f.label})`;
+        btnGrid.appendChild(dmgBtn);
+      }
     }
 
     function closeCastModal() {
@@ -1357,7 +1459,7 @@
     }
 
     // =========================================================================
-    // 7. TWILIGHT FEATURES & JSON SYNC
+    // 8. TWILIGHT FEATURES & JSON SYNC
     // =========================================================================
     function toggleEyesOfNight() {
       state.resources.eyesShared = !state.resources.eyesShared;
@@ -1410,7 +1512,7 @@
     }
 
     // =========================================================================
-    // 8. RENDERING PIPELINE
+    // 9. RENDERING PIPELINE
     // =========================================================================
     function ordinal(n) {
       return n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
@@ -1456,7 +1558,6 @@
       const activeBox = document.getElementById('cd-state-active');
       const maxCd = getMaxCD();
 
-      // Orbs (Smaller circular matte amber pips inside generous 28px touch targets)
       const orbBox = document.getElementById('cd-orbs-container');
       orbBox.innerHTML = '';
       for (let i = 0; i < maxCd; i++) {
@@ -1612,7 +1713,6 @@
         const list = filtered.filter(s => s.level === sec.level);
         if (list.length === 0) return;
 
-        // Sort Domain spells to top of each level group
         list.sort((a, b) => (b.domain ? 1 : 0) - (a.domain ? 1 : 0));
 
         const groupEl = document.createElement('div');
@@ -1633,30 +1733,75 @@
               : sp.domain
               ? 'border-amber-500/35'
               : 'border-slate-800'
-          } p-3 flex items-center justify-between gap-2.5`;
+          } p-3 space-y-2.5`;
+
+          // Build optional To Hit & Damage/Heal quick-roll buttons
+          const hasCombatRolls = sp.attack || sp.damage;
+          let combatRowHtml = '';
+          if (hasCombatRolls) {
+            const atkBtnHtml = sp.attack
+              ? `<button type="button" onclick="rollSpellAttack('${sp.id}')" class="min-h-[36px] px-2.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 border border-sky-400/45 text-sky-300 font-mono text-[11px] font-bold flex items-center gap-1 active:scale-95 transition">
+                  <span>🎯 To Hit</span>
+                  <span class="text-sky-100">+${getSpellAttack()}</span>
+                </button>`
+              : '';
+
+            let dmgBtnHtml = '';
+            if (sp.damage) {
+              const f = getDamageFormula(sp, sp.damage);
+              const btnTone = f.isHeal
+                ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-400/45 text-emerald-300'
+                : 'bg-rose-500/15 hover:bg-rose-500/25 border-rose-400/45 text-rose-300';
+              const icon = f.isHeal ? '💚 Heal' : '🎲 Dmg';
+              dmgBtnHtml = `<button type="button" onclick="rollSpellDamage('${sp.id}')" class="min-h-[36px] px-2.5 rounded-lg ${btnTone} border font-mono text-[11px] font-bold flex items-center gap-1 active:scale-95 transition">
+                <span>${icon}</span>
+                <span class="text-slate-100">${f.label}</span>
+              </button>`;
+            }
+
+            let altDmgBtnHtml = '';
+            if (sp.altDamage) {
+              const altF = getDamageFormula(sp, sp.altDamage);
+              altDmgBtnHtml = `<button type="button" onclick="rollSpellDamage('${sp.id}', null, true)" class="min-h-[36px] px-2.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/45 text-amber-300 font-mono text-[11px] font-bold flex items-center gap-1 active:scale-95 transition">
+                <span>🎲 Injured</span>
+                <span class="text-amber-100">${altF.label}</span>
+              </button>`;
+            }
+
+            combatRowHtml = `
+              <div class="pt-2 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5">
+                ${atkBtnHtml}
+                ${dmgBtnHtml}
+                ${altDmgBtnHtml}
+              </div>
+            `;
+          }
 
           card.innerHTML = `
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-1.5 mb-1">
-                <span class="font-bold text-sm text-slate-100">${sp.name}</span>
-                ${sp.domain ? '<span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/40">★ Domain</span>' : ''}
-                ${sp.conc ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-400/35">C</span>' : ''}
-                ${sp.ritual ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 border border-sky-400/35">R</span>' : ''}
+            <div class="flex items-center justify-between gap-2.5">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                  <span class="font-bold text-sm text-slate-100">${sp.name}</span>
+                  ${sp.domain ? '<span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/40">★ Domain</span>' : ''}
+                  ${sp.conc ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-400/35">C</span>' : ''}
+                  ${sp.ritual ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 border border-sky-400/35">R</span>' : ''}
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-slate-400 mb-1">
+                  <span class="font-mono px-1.5 py-0.2 rounded bg-void-950 border border-slate-800 text-violet-200">${sp.time}</span>
+                  <span>• ${sp.range}</span>
+                  <span>• ${sp.duration}</span>
+                </div>
+                <p class="text-xs text-slate-300/90 leading-snug">${sp.summary}</p>
               </div>
-              <div class="flex items-center gap-1.5 text-[11px] text-slate-400 mb-1">
-                <span class="font-mono px-1.5 py-0.2 rounded bg-void-950 border border-slate-800 text-violet-200">${sp.time}</span>
-                <span>• ${sp.range}</span>
-                <span>• ${sp.duration}</span>
-              </div>
-              <p class="text-xs text-slate-300/90 leading-snug">${sp.summary}</p>
+              <button onclick="openCastModal('${sp.id}')" class="min-h-[46px] min-w-[64px] px-3 rounded-xl ${
+                sp.level === 0
+                  ? 'bg-void-800 hover:bg-void-700 text-slate-100 border border-slate-700'
+                  : 'bg-gradient-to-b from-violet-500 to-indigo-600 hover:from-violet-400 hover:to-indigo-500 text-white shadow-md shadow-violet-950/60'
+              } text-xs font-bold shrink-0 active:scale-95 transition">
+                Cast
+              </button>
             </div>
-            <button onclick="openCastModal('${sp.id}')" class="min-h-[46px] min-w-[64px] px-3 rounded-xl ${
-              sp.level === 0
-                ? 'bg-void-800 hover:bg-void-700 text-slate-100 border border-slate-700'
-                : 'bg-gradient-to-b from-violet-500 to-indigo-600 hover:from-violet-400 hover:to-indigo-500 text-white shadow-md shadow-violet-950/60'
-            } text-xs font-bold shrink-0 active:scale-95 transition">
-              Cast
-            </button>
+            ${combatRowHtml}
           `;
           groupEl.appendChild(card);
         });
@@ -1690,7 +1835,6 @@
         stepsPipsEl.appendChild(dot);
       }
 
-      // Highlight Steps of Night in gold when Twilight Sanctuary is active!
       const stepsCard = document.getElementById('steps-night-card');
       const dimBadge = document.getElementById('dim-light-badge');
       if (state.sanctuary.active) {
